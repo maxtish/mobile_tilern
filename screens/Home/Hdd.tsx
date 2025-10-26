@@ -47,7 +47,7 @@ export default function HomeScreen() {
             styles.title,
             {
               color: navTheme.colors.text,
-              fontFamily: navTheme.fonts.heavy.fontFamily,
+              fontFamily: 'Playwrite DE SAS',
             },
           ]}
         >
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  title: { fontSize: 24 },
+  title: { fontSize: 24, fontWeight: '700' },
   avatar: {
     width: 44,
     height: 44,
