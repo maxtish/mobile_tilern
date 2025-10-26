@@ -8,37 +8,23 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+
 import { useAppTheme } from '../../theme/ThemeProvider';
+import { stories } from '../../constants/stories';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/types';
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 const { width, height } = Dimensions.get('window');
-
-const mockStories = [
-  {
-    id: 1,
-    title: 'История о путешествии...',
-    image: 'https://picsum.photos/400/300?random=1',
-  },
-  {
-    id: 2,
-    title: 'Невероятное приключение',
-    image: 'https://picsum.photos/400/300?random=2',
-  },
-  {
-    id: 3,
-    title: 'Как я жил без интернета',
-    image: 'https://picsum.photos/400/300?random=3',
-  },
-];
 
 export default function HomeScreen() {
   const { navTheme, appTheme, toggleTheme } = useAppTheme();
-
+  const navigation = useNavigation<NavigationProp>();
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: navTheme.colors.background },
-      ]}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: navTheme.colors.background }}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 60 }}
     >
       {/* Верхняя панель */}
       <View style={styles.header}>
@@ -55,14 +41,12 @@ export default function HomeScreen() {
         </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {/* Аватар */}
           <TouchableOpacity
             style={[styles.avatar, { backgroundColor: navTheme.colors.card }]}
           >
             <Text style={{ color: navTheme.colors.text }}>A</Text>
           </TouchableOpacity>
 
-          {/* Переключатель темы */}
           <TouchableOpacity
             onPress={toggleTheme}
             style={[
@@ -75,34 +59,74 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Секция историй */}
-      <View style={styles.storySection}>
+      {/* Горизонтальный скролл новых историй */}
+      <View style={{ height: height / 3, marginBottom: 20 }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.storyScroll}
         >
-          {mockStories.map(story => (
-            <TouchableOpacity key={story.id} style={styles.storyCard}>
+          {stories
+            .filter(story => story.isNew)
+            .map(story => (
+              <TouchableOpacity
+                key={story.id}
+                style={styles.storyNewCard}
+                onPress={() => navigation.navigate('StoryScreen', { story })}
+              >
+                <ImageBackground
+                  source={{ uri: story.image }}
+                  style={styles.storyImage}
+                  imageStyle={{ borderRadius: 16 }}
+                >
+                  <View style={styles.levelBadge}>
+                    <Text style={styles.levelText}>{story.languageLevel}</Text>
+                  </View>
+                  <View style={styles.overlay} />
+                  <Text
+                    style={styles.storyText}
+                    numberOfLines={3}
+                    ellipsizeMode="tail"
+                  >
+                    {story.title.ru}
+                  </Text>
+                </ImageBackground>
+              </TouchableOpacity>
+            ))}
+        </ScrollView>
+      </View>
+
+      {/* Вертикальный список обычных историй */}
+      <View style={styles.storyScroll}>
+        {stories
+          .filter(story => !story.isNew)
+          .map(story => (
+            <TouchableOpacity
+              key={story.id}
+              style={[styles.storyCard, { height: 200, marginBottom: 16 }]}
+              onPress={() => navigation.navigate('StoryScreen', { story })}
+            >
               <ImageBackground
                 source={{ uri: story.image }}
                 style={styles.storyImage}
                 imageStyle={{ borderRadius: 16 }}
               >
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelText}>{story.languageLevel}</Text>
+                </View>
                 <View style={styles.overlay} />
                 <Text
                   style={styles.storyText}
                   numberOfLines={3}
                   ellipsizeMode="tail"
                 >
-                  {story.title}
+                  {story.title.ru}
                 </Text>
               </ImageBackground>
             </TouchableOpacity>
           ))}
-        </ScrollView>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -131,13 +155,32 @@ const styles = StyleSheet.create({
   },
   storySection: { height: height / 3 },
   storyScroll: { alignItems: 'center' },
-  storyCard: { width: width * 0.6, height: '90%', marginRight: 16 },
+  storyCard: { width: width * 0.9, height: '90%', marginRight: 16 },
+  storyNewCard: { width: width * 0.6, height: '90%', marginRight: 16 },
   storyImage: {
     flex: 1,
     justifyContent: 'flex-end',
     borderRadius: 16,
     overflow: 'hidden',
     padding: 12,
+  },
+  levelBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: '#ffda0bff', // золотой, можно менять
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+
+  levelText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

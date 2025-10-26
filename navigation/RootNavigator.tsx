@@ -3,6 +3,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/Home/HomeScreen';
 import { RootStackParamList } from './types';
+import StoryScreen from '../screens/Home/StoryScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -12,6 +13,11 @@ export default function RootNavigator() {
       <Stack.Screen
         name="Home"
         component={HomeScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="StoryScreen"
+        component={StoryScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
