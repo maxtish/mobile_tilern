@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
-import { Story } from '../../types/storiesTypes';
+import { Story, BaseWord } from '../../types/storiesTypes';
 
 const { width } = Dimensions.get('window');
 
@@ -26,49 +26,175 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const { navTheme } = useAppTheme();
   const { story } = route.params;
 
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [translation, setTranslation] = useState<string | null>(null);
+  const [showTranslation, setShowTranslation] = useState<boolean>(false);
+
+  // обработка клика по слову
+  const handleWordPress = (word: string) => {
+    const found = story.words.find(w => {
+      if (typeof w.word === 'string')
+        return w.word.toLowerCase() === word.toLowerCase();
+      if (typeof w.word === 'object')
+        return (
+          w.word.singular.toLowerCase() === word.toLowerCase() ||
+          w.word.plural.toLowerCase() === word.toLowerCase()
+        );
+      return false;
+    });
+
+    if (found) {
+      setSelectedWord(word);
+      setTranslation(found.translation);
+    } else {
+      setSelectedWord(word);
+      setTranslation('Перевод не найден');
+    }
+  };
+
+  /// --- интерактивные слова ---
+  const renderTextWithTouch = (text: string) => {
+    const parts = text.split(/(\s+|[.,!?;]+)/);
+
+    return parts.map((part, index) => {
+      const cleaned = part.trim();
+
+      if (!cleaned) {
+        return (
+          <Text
+            key={`space-${index}`}
+            style={[styles.word, { color: navTheme.colors.text }]}
+          >
+            {part}
+          </Text>
+        );
+      }
+
+      const isSelected = selectedWord === cleaned;
+
+      return (
+        <TouchableOpacity
+          key={`word-${index}`}
+          onPress={() => handleWordPress(cleaned)}
+        >
+          <Text
+            style={[
+              styles.word,
+              {
+                color: isSelected ? '#000' : navTheme.colors.text,
+                backgroundColor: isSelected ? '#FFD700' : 'transparent',
+              },
+            ]}
+          >
+            {part}
+          </Text>
+        </TouchableOpacity>
+      );
+    });
+  };
+
+  // делим текст на предложения
+  const splitSentences = (text: string) =>
+    text.match(/[^.!?]+[.!?]+/g)?.map(s => s.trim()) || [];
+
+  const renderSentencesWithTranslation = () => {
+    const deSentences = splitSentences(story.fullStory.de);
+    const ruSentences = splitSentences(story.fullStory.ru);
+
+    return deSentences.map((deSentence, index) => (
+      <View key={index} style={styles.sentenceBlock}>
+        <Text style={[styles.deSentence, { color: navTheme.colors.text }]}>
+          {deSentence}
+        </Text>
+        {ruSentences[index] && (
+          <Text style={[styles.ruSentence, { color: navTheme.colors.text }]}>
+            {ruSentences[index]}
+          </Text>
+        )}
+      </View>
+    ));
+  };
+
   return (
-    <ScrollView
+    <View
       style={[
         styles.container,
         { backgroundColor: navTheme.colors.background },
       ]}
     >
-      {/* Картинка */}
-      <Image
-        source={{ uri: story.image }}
-        style={styles.image}
-        resizeMode="cover"
-      />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Картинка */}
+        <View style={styles.imageWrapper}>
+          <Image
+            source={{ uri: story.image }}
+            style={styles.image}
+            resizeMode="cover"
+          />
 
-      {/* Заголовок и уровень языка */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: navTheme.colors.text }]}>
-          {story.title.ru} {/* Можно переключить на story.title.de */}
-        </Text>
-        <View style={styles.levelBadge}>
-          <Text style={styles.levelText}>{story.languageLevel}</Text>
+          {/* Перевод поверх картинки (для отдельного слова) */}
+          {translation && (
+            <View style={styles.translationOverlay}>
+              <Text style={styles.translationText}>{translation}</Text>
+            </View>
+          )}
         </View>
-      </View>
 
-      {/* Полная история */}
-      <Text style={[styles.fullStory, { color: navTheme.colors.text }]}>
-        {story.fullStory}
-      </Text>
+        {/* Заголовок */}
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: navTheme.colors.text }]}>
+            {story.title.de}
+          </Text>
+          <View style={styles.levelBadge}>
+            <Text style={styles.levelText}>{story.languageLevel}</Text>
+          </View>
+        </View>
 
-      {/* Кнопка назад */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Назад</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Кнопка показать перевод */}
+        <TouchableOpacity
+          style={styles.showButton}
+          onPress={() => setShowTranslation(!showTranslation)}
+        >
+          <Text style={styles.showButtonText}>
+            {showTranslation ? 'Скрыть перевод' : 'Показать перевод'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Основной текст */}
+        {!showTranslation ? (
+          <Text style={styles.fullStory}>
+            {renderTextWithTouch(story.fullStory.de)}
+          </Text>
+        ) : (
+          renderSentencesWithTranslation()
+        )}
+
+        {/* Кнопка назад */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Назад</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  image: { width: width - 32, height: 200, borderRadius: 16, marginBottom: 16 },
+  imageWrapper: { position: 'relative', marginBottom: 16 },
+  image: { width: width - 32, height: 200, borderRadius: 16 },
+  translationOverlay: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    padding: 8,
+    alignItems: 'center',
+  },
+  translationText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   title: { fontSize: 22, fontWeight: 'bold', flex: 1 },
   levelBadge: {
@@ -81,12 +207,30 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   levelText: { color: '#000', fontWeight: 'bold' },
-  fullStory: { fontSize: 16, lineHeight: 22 },
+  fullStory: {
+    fontSize: 18,
+    lineHeight: 28,
+    flexWrap: 'wrap',
+    flexDirection: 'row',
+  },
+  word: { fontSize: 18, lineHeight: 28, paddingHorizontal: 2, borderRadius: 6 },
+  sentenceBlock: { marginBottom: 12 },
+  deSentence: { fontSize: 18, fontWeight: '600' },
+  ruSentence: { fontSize: 17, opacity: 0.8 },
+  showButton: {
+    backgroundColor: '#FFD700',
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginVertical: 12,
+    alignItems: 'center',
+  },
+  showButtonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
   backButton: {
     marginTop: 24,
     backgroundColor: '#007bff',
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
+    marginBottom: 30,
   },
 });
