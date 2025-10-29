@@ -1,15 +1,13 @@
-export interface Story {
-  id: number;
-  title: {
-    ru: string;
-    de: string;
-  };
-  image: string;
+export interface History {
+  id: string | null;
+  title: { de: string; ru: string };
+  description: string;
   fullStory: {
     ru: string;
     de: string;
   };
   languageLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+  image: string;
   isNew: boolean;
   audioUrl: string;
   wordTiming: WordTiming[];
@@ -31,16 +29,13 @@ export interface BaseWord {
 }
 export type WordType = 'noun' | 'verb' | 'other';
 
-// Существительное —  с формами
-export interface NounWord extends BaseWord {
-  type: 'noun';
-  word: { singular: string; plural: string }; // немецкое слово в ед. и мн. числе
-}
+export type Word = {
+  type: WordType;
+  word: string | { singular: string | null; plural: string | null };
+  translation: string;
+};
 
-// Глагол или другое — просто слово
-export interface SimpleWord extends BaseWord {
-  type: 'verb' | 'other';
-  word: string; // немецкое слово
+export interface StoryTiming {
+  text: string;
+  wordTiming: WordTiming[];
 }
-
-export type Word = NounWord | SimpleWord;

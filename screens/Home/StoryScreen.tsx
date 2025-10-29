@@ -9,14 +9,14 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
-import { Story, BaseWord } from '../../types/storiesTypes';
+import { History, BaseWord } from '../../types/storiesTypes';
 
 const { width } = Dimensions.get('window');
 
 interface StoryScreenProps {
   route: {
     params: {
-      story: Story;
+      story: History;
     };
   };
   navigation: any;
@@ -31,21 +31,42 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
 
   // обработка клика по слову
+  const removeArticle = (word: string) => {
+    return word.replace(/^(der|die|das|ein|eine)\s+/i, '').toLowerCase();
+  };
+  const SERVER_URL = 'http://192.168.178.37:3000';
   const handleWordPress = (word: string) => {
+    const cleanedWord = word.toLowerCase();
+
     const found = story.words.find(w => {
-      if (typeof w.word === 'string')
-        return w.word.toLowerCase() === word.toLowerCase();
-      if (typeof w.word === 'object')
-        return (
-          w.word.singular.toLowerCase() === word.toLowerCase() ||
-          w.word.plural.toLowerCase() === word.toLowerCase()
-        );
+      if (w.type === 'noun' && typeof w.word === 'object') {
+        // Существительное: сравниваем только корень
+        const singular = removeArticle(w.word.singular || '');
+        const plural = removeArticle(w.word.plural || '');
+        return cleanedWord === singular || cleanedWord === plural;
+      } else if (typeof w.word === 'string') {
+        // Прочие слова (в том числе артикли) — сравниваем полностью
+        return cleanedWord === w.word.toLowerCase();
+      }
       return false;
     });
 
     if (found) {
       setSelectedWord(word);
-      setTranslation(found.translation);
+
+      if (found.type === 'noun' && typeof found.word === 'object') {
+        const singular = removeArticle(found.word.singular || '');
+        const plural = removeArticle(found.word.plural || '');
+        const form =
+          cleanedWord === singular
+            ? '(singular)'
+            : cleanedWord === plural
+            ? '(plural)'
+            : '';
+        setTranslation(`${found.translation} ${form}`);
+      } else {
+        setTranslation(found.translation);
+      }
     } else {
       setSelectedWord(word);
       setTranslation('Перевод не найден');
@@ -126,7 +147,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         {/* Картинка */}
         <View style={styles.imageWrapper}>
           <Image
-            source={{ uri: story.image }}
+            source={{ uri: `${SERVER_URL}${story.image}` }}
             style={styles.image}
             resizeMode="cover"
           />

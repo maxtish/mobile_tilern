@@ -17,7 +17,7 @@ import { RootStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 const { width, height } = Dimensions.get('window');
-
+const SERVER_URL = 'http://192.168.178.37:3000';
 export default function HomeScreen() {
   const { navTheme, appTheme, toggleTheme } = useAppTheme();
   const navigation = useNavigation<NavigationProp>();
@@ -75,7 +75,7 @@ export default function HomeScreen() {
                 onPress={() => navigation.navigate('StoryScreen', { story })}
               >
                 <ImageBackground
-                  source={{ uri: story.image }}
+                  source={{ uri: `${SERVER_URL}${story.image}` }}
                   style={styles.storyImage}
                   imageStyle={{ borderRadius: 16 }}
                 >
@@ -107,7 +107,7 @@ export default function HomeScreen() {
               onPress={() => navigation.navigate('StoryScreen', { story })}
             >
               <ImageBackground
-                source={{ uri: story.image }}
+                source={{ uri: `${SERVER_URL}${story.image}` }}
                 style={styles.storyImage}
                 imageStyle={{ borderRadius: 16 }}
               >
