@@ -276,7 +276,7 @@ export const stories: History[] = [
         end: 2.9784616323617787,
       },
       {
-        word: '100°C',
+        word: '100',
         start: 2.9784616323617787,
         end: 3.350769336407001,
       },
