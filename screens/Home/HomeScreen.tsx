@@ -43,6 +43,7 @@ export default function HomeScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
             style={[styles.avatar, { backgroundColor: navTheme.colors.card }]}
+            onPress={() => navigation.navigate('Auth')}
           >
             <Text style={{ color: navTheme.colors.text }}>A</Text>
           </TouchableOpacity>

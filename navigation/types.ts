@@ -1,7 +1,8 @@
-import { Story } from '../types/storiesTypes';
+import { History } from '../types/storiesTypes';
 
 // app/navigation/types.ts
 export type RootStackParamList = {
   Home: undefined;
-  StoryScreen: { story: Story };
+  StoryScreen: { story: History };
+  Auth: undefined;
 };
