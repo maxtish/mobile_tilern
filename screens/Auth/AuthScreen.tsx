@@ -1,5 +1,4 @@
-// screens/Auth/AuthScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,13 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 
+import { useUserStore } from '../../state/userStore';
+import { login } from '../../api/login';
+import { register } from '../../api/register';
+
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
-const SERVER_URL = 'http://192.168.178.37:3000';
 
 export default function AuthScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -22,31 +25,65 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
 
+  const user = useUserStore(state => state.user);
+  const setUser = useUserStore(state => state.setUser);
+  const logout = useUserStore(state => state.logout);
+
+  const [hydrated, setHydrated] = useState(false);
+
+  // Проверка загрузки состояния из AsyncStorage
+  useEffect(() => {
+    const unsubscribe = useUserStore.persist.onHydrate(() => {
+      setHydrated(true);
+    });
+    // На случай, если store уже загружен
+    setHydrated(true);
+    return () => unsubscribe?.();
+  }, []);
+
   const handleSubmit = async () => {
     try {
-      const endpoint = isLogin ? 'login' : 'register';
-      const body = isLogin ? { email, password } : { email, password, name };
-      const res = await fetch(`${SERVER_URL}/auth/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      console.log(data);
-      if (res.ok) {
-        Alert.alert('Success', `Welcome ${data.user.name || data.user.email}`);
-        navigation.goBack();
-      } else {
-        Alert.alert('Error', data.error || 'Something went wrong');
-      }
+      const data = isLogin
+        ? await login(email, password)
+        : await register(email, password, name);
+
+      setUser(data.user, data.token);
     } catch (err: any) {
-      Alert.alert('Error', 'Network error');
+      Alert.alert('Error', err.message);
     }
   };
 
+  if (!hydrated) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // Если пользователь уже авторизован — показываем его инфо
+  if (user) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Welcome!</Text>
+        <Text style={styles.infoText}>Name: {user.name}</Text>
+        <Text style={styles.infoText}>Email: {user.email}</Text>
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#dc3545' }]}
+          onPress={logout}
+        >
+          <Text style={styles.buttonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Форма login/register
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{isLogin ? 'Login' : 'Register'}</Text>
+
       {!isLogin && (
         <TextInput
           placeholder="Name"
@@ -55,6 +92,7 @@ export default function AuthScreen() {
           style={styles.input}
         />
       )}
+
       <TextInput
         placeholder="Email"
         value={email}
@@ -63,6 +101,7 @@ export default function AuthScreen() {
         autoCapitalize="none"
         style={styles.input}
       />
+
       <TextInput
         placeholder="Password"
         value={password}
@@ -70,6 +109,7 @@ export default function AuthScreen() {
         secureTextEntry
         style={styles.input}
       />
+
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
         <Text style={styles.buttonText}>{isLogin ? 'Login' : 'Register'}</Text>
       </TouchableOpacity>
@@ -107,4 +147,5 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   switchText: { color: '#007bff', textAlign: 'center', marginTop: 8 },
+  infoText: { fontSize: 18, marginBottom: 8, textAlign: 'center' },
 });

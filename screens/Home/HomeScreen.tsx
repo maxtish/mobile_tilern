@@ -14,13 +14,18 @@ import { stories } from '../../constants/stories';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
+import { useUserStore } from '../../state/userStore';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 const { width, height } = Dimensions.get('window');
 const SERVER_URL = 'http://192.168.178.37:3000';
+
 export default function HomeScreen() {
   const { navTheme, appTheme, toggleTheme } = useAppTheme();
   const navigation = useNavigation<NavigationProp>();
+
+  const user = useUserStore(state => state.user);
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: navTheme.colors.background }}
@@ -28,17 +33,25 @@ export default function HomeScreen() {
     >
       {/* Верхняя панель */}
       <View style={styles.header}>
-        <Text
-          style={[
-            styles.title,
-            {
-              color: navTheme.colors.text,
-              fontFamily: navTheme.fonts.heavy.fontFamily,
-            },
-          ]}
-        >
-          Добро пожаловать!
-        </Text>
+        {user?.role === 'ADMIN' ? (
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: '#28a745' }]}
+          >
+            <Text style={styles.buttonText}>Добавить историю</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text
+            style={[
+              styles.title,
+              {
+                color: navTheme.colors.text,
+                fontFamily: navTheme.fonts.heavy.fontFamily,
+              },
+            ]}
+          >
+            Добро пожаловать!
+          </Text>
+        )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
@@ -154,6 +167,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  button: {
+    backgroundColor: '#007bff',
+    padding: 10,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   storySection: { height: height / 3 },
   storyScroll: { alignItems: 'center' },
   storyCard: { width: width * 0.9, height: '90%', marginRight: 16 },
@@ -169,7 +190,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#ffda0bff', // золотой, можно менять
+    backgroundColor: '#ffda0bff',
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -177,7 +198,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 2,
   },
-
   levelText: {
     color: '#000',
     fontWeight: 'bold',
