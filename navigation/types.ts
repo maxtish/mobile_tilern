@@ -5,4 +5,5 @@ export type RootStackParamList = {
   Home: undefined;
   StoryScreen: { story: History };
   Auth: undefined;
+  AddStory: undefined;
 };

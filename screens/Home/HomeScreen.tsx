@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,16 @@ import {
   ImageBackground,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 
 import { useAppTheme } from '../../theme/ThemeProvider';
-import { stories } from '../../constants/stories';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useUserStore } from '../../state/userStore';
+import { getHistories } from '../../api/getHistories';
+import { History } from '../../types/storiesTypes';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 const { width, height } = Dimensions.get('window');
@@ -23,8 +25,26 @@ const SERVER_URL = 'http://192.168.178.37:3000';
 export default function HomeScreen() {
   const { navTheme, appTheme, toggleTheme } = useAppTheme();
   const navigation = useNavigation<NavigationProp>();
-
   const user = useUserStore(state => state.user);
+  const [histories, setHistories] = useState<History[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchHistories = async () => {
+      try {
+        const data = await getHistories();
+        setHistories(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistories();
+  }, []);
+
+  if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
     <ScrollView
@@ -33,9 +53,10 @@ export default function HomeScreen() {
     >
       {/* Верхняя панель */}
       <View style={styles.header}>
-        {user?.role === 'ADMIN' ? (
+        {user?.role === 'ADMIN' || user?.role === 'USER' ? (
           <TouchableOpacity
             style={[styles.button, { backgroundColor: '#28a745' }]}
+            onPress={() => navigation.navigate('AddStory')}
           >
             <Text style={styles.buttonText}>Добавить историю</Text>
           </TouchableOpacity>
@@ -80,7 +101,7 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.storyScroll}
         >
-          {stories
+          {histories
             .filter(story => story.isNew)
             .map(story => (
               <TouchableOpacity
@@ -112,7 +133,7 @@ export default function HomeScreen() {
 
       {/* Вертикальный список обычных историй */}
       <View style={styles.storyScroll}>
-        {stories
+        {histories
           .filter(story => !story.isNew)
           .map(story => (
             <TouchableOpacity

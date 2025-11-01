@@ -5,6 +5,7 @@ import HomeScreen from '../screens/Home/HomeScreen';
 import { RootStackParamList } from './types';
 import StoryScreen from '../screens/Home/StoryScreen';
 import AuthScreen from '../screens/Auth/AuthScreen';
+import AddStoryScreen from '../screens/AddStory/AddStoryScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -22,6 +23,11 @@ export default function RootNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen name="Auth" component={AuthScreen} />
+      <Stack.Screen
+        name="AddStory"
+        component={AddStoryScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

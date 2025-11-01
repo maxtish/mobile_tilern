@@ -28,3 +28,4 @@ app/
 # Getting Started
 
  npx react-native run-android
+ ./gradlew clean
