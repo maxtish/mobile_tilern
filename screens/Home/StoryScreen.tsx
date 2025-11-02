@@ -13,9 +13,10 @@ import { useAppTheme } from '../../theme/ThemeProvider';
 import { History } from '../../types/storiesTypes';
 import Sound from 'react-native-sound';
 import RNFS from 'react-native-fs';
+import { SERVER_URL } from '../../constants/constants';
 
 const { width } = Dimensions.get('window');
-const SERVER_URL = 'http://192.168.178.37:3000';
+
 const SYNC_OFFSET = 0.2;
 
 interface StoryScreenProps {
@@ -258,7 +259,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.imageWrapper}>
           <Image
-            source={{ uri: `${SERVER_URL}${story.image}` }}
+            source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
             style={styles.image}
             resizeMode="cover"
           />

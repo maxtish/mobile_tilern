@@ -68,7 +68,8 @@ export default function AuthScreen() {
         <Text style={styles.title}>Welcome!</Text>
         <Text style={styles.infoText}>Name: {user.name}</Text>
         <Text style={styles.infoText}>Email: {user.email}</Text>
-
+        <Text style={styles.infoText}>ID: {user.id}</Text>
+        <Text style={styles.infoText}>Role: {user.role}</Text>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: '#dc3545' }]}
           onPress={logout}

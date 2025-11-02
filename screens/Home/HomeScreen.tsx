@@ -17,10 +17,10 @@ import { RootStackParamList } from '../../navigation/types';
 import { useUserStore } from '../../state/userStore';
 import { getHistories } from '../../api/getHistories';
 import { History } from '../../types/storiesTypes';
+import { SERVER_URL } from '../../constants/constants';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 const { width, height } = Dimensions.get('window');
-const SERVER_URL = 'http://192.168.178.37:3000';
 
 export default function HomeScreen() {
   const { navTheme, appTheme, toggleTheme } = useAppTheme();
@@ -30,17 +30,18 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const fetchHistories = async () => {
+    try {
+      const data = await getHistories();
+      setHistories(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchHistories = async () => {
-      try {
-        const data = await getHistories();
-        setHistories(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchHistories();
   }, []);
 
@@ -54,12 +55,17 @@ export default function HomeScreen() {
       {/* Верхняя панель */}
       <View style={styles.header}>
         {user?.role === 'ADMIN' || user?.role === 'USER' ? (
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: '#28a745' }]}
-            onPress={() => navigation.navigate('AddStory')}
-          >
-            <Text style={styles.buttonText}>Добавить историю</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: '#28a745' }]}
+              onPress={() => navigation.navigate('AddStory')}
+            >
+              <Text style={styles.buttonText}>Добавить историю</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => fetchHistories()}>
+              <Text>🔄</Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <Text
             style={[
@@ -102,7 +108,7 @@ export default function HomeScreen() {
           contentContainerStyle={styles.storyScroll}
         >
           {histories
-            .filter(story => story.isNew)
+            .filter(story => story)
             .map(story => (
               <TouchableOpacity
                 key={story.id}
@@ -110,7 +116,7 @@ export default function HomeScreen() {
                 onPress={() => navigation.navigate('StoryScreen', { story })}
               >
                 <ImageBackground
-                  source={{ uri: `${SERVER_URL}${story.image}` }}
+                  source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
                   style={styles.storyImage}
                   imageStyle={{ borderRadius: 16 }}
                 >
@@ -134,7 +140,7 @@ export default function HomeScreen() {
       {/* Вертикальный список обычных историй */}
       <View style={styles.storyScroll}>
         {histories
-          .filter(story => !story.isNew)
+          .filter(story => story)
           .map(story => (
             <TouchableOpacity
               key={story.id}
@@ -142,7 +148,7 @@ export default function HomeScreen() {
               onPress={() => navigation.navigate('StoryScreen', { story })}
             >
               <ImageBackground
-                source={{ uri: `${SERVER_URL}${story.image}` }}
+                source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
                 style={styles.storyImage}
                 imageStyle={{ borderRadius: 16 }}
               >
