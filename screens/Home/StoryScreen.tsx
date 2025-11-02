@@ -14,6 +14,7 @@ import { History } from '../../types/storiesTypes';
 import Sound from 'react-native-sound';
 import RNFS from 'react-native-fs';
 import { SERVER_URL } from '../../constants/constants';
+import { splitGermanText } from '../../utils/splitGermanText';
 
 const { width } = Dimensions.get('window');
 
@@ -172,19 +173,11 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   };
 
   const renderTextWithTouch = (text: string) => {
-    const parts = text.match(/\S+|\s+/g) || [];
-    return parts.map((part, index) => {
-      if (/^\s+$/.test(part))
-        return (
-          <Text key={`space-${index}`} style={styles.word}>
-            {part}
-          </Text>
-        );
-
-      const cleaned = normalize(part);
+    const parts = splitGermanText(text);
+    return parts.map((word, index) => {
+      const cleaned = normalize(word);
       const activeWordObj =
         activeIndex !== null ? story.wordTiming[activeIndex] : null;
-
       const isActive =
         activeWordObj && normalize(activeWordObj.word) === cleaned;
       const isSelected = selectedWord === cleaned;
@@ -207,13 +200,12 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
               },
             ]}
           >
-            {part}
+            {word}
           </Text>
         </TouchableOpacity>
       );
     });
   };
-
   // -------------------------------------------
   // 📝 Рендер предложений с переводом
   // -------------------------------------------
