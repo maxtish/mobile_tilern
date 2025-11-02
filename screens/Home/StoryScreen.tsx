@@ -8,13 +8,17 @@ import {
   Dimensions,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
-import { History } from '../../types/storiesTypes';
+import { History, Word } from '../../types/storiesTypes';
 import Sound from 'react-native-sound';
 import RNFS from 'react-native-fs';
 import { SERVER_URL } from '../../constants/constants';
 import { splitGermanText } from '../../utils/splitGermanText';
+
+import { useUserStore } from '../../state/userStore';
+import { saveUserWord } from '../../api/userWords';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +34,7 @@ interface StoryScreenProps {
 }
 
 export default function StoryScreen({ route, navigation }: StoryScreenProps) {
+  const user = useUserStore(state => state.user);
   const { navTheme } = useAppTheme();
   const { story } = route.params;
 
@@ -240,6 +245,63 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       );
     });
   };
+  /////////////////////
+  const handleAddWord = async (wordText: string) => {
+    if (!user) {
+      Alert.alert('Войдите, чтобы сохранять слова');
+      return;
+    }
+
+    const cleanedWordText = wordText
+      .toLowerCase()
+      .replace(/[.,!?;:°]/g, '')
+      .trim();
+
+    // Ищем слово в story.words
+    const foundWord: Word | undefined = story.words.find(w => {
+      if (!w.word) return false;
+
+      if (w.type === 'noun' && typeof w.word === 'object') {
+        const singular = (w.word.singular || '')
+          .toLowerCase()
+          .replace(/^(der|die|das|ein|eine)\s+/, '');
+        const plural = (w.word.plural || '')
+          .toLowerCase()
+          .replace(/^(der|die|das|ein|eine)\s+/, '');
+        return cleanedWordText === singular || cleanedWordText === plural;
+      }
+
+      if (typeof w.word === 'string') {
+        const normalized = w.word
+          .toLowerCase()
+          .replace(/^(der|die|das|ein|eine)\s+/, '');
+        return cleanedWordText === normalized;
+      }
+
+      return false;
+    });
+
+    if (!foundWord) {
+      Alert.alert('Слово не найдено в списке слов истории');
+      return;
+    }
+
+    try {
+      const response = await saveUserWord(user.id, story.id, foundWord);
+
+      if (response?.success) {
+        Alert.alert('✅ Слово добавлено!');
+      } else if (response?.message === 'Слово уже сохранено') {
+        Alert.alert('ℹ️ Это слово уже в вашем списке');
+      } else {
+        console.log('Ошибка API:', response);
+        Alert.alert('Ошибка при сохранении слова');
+      }
+    } catch (error) {
+      console.error('Ошибка при вызове saveUserWord:', error);
+      Alert.alert('Ошибка при сохранении слова');
+    }
+  };
 
   return (
     <View
@@ -258,6 +320,18 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           {translation && (
             <View style={styles.translationOverlay}>
               <Text style={styles.translationText}>{translation}</Text>
+
+              {/* ✅ Кнопка добавить слово, если пользователь авторизован */}
+              {user && selectedWord && (
+                <TouchableOpacity
+                  style={styles.addWordButton}
+                  onPress={() => handleAddWord(selectedWord)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                    Добавить слово
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -319,6 +393,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           <Text style={{ color: '#fff', fontWeight: 'bold' }}>Назад</Text>
         </TouchableOpacity>
       </ScrollView>
+      <TouchableOpacity
+        style={styles.viewWordsButton}
+        onPress={() => navigation.navigate('SavedWords', { userId: user?.id })}
+      >
+        <Text style={{ color: '#000', fontWeight: 'bold' }}>
+          📚 Посмотреть все слова
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -383,5 +465,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 30,
+  },
+  addWordButton: {
+    backgroundColor: '#1dad00ff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  viewWordsButton: {
+    backgroundColor: '#FFD700',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
   },
 });

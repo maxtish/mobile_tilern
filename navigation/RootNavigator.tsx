@@ -6,6 +6,7 @@ import { RootStackParamList } from './types';
 import StoryScreen from '../screens/Home/StoryScreen';
 import AuthScreen from '../screens/Auth/AuthScreen';
 import AddStoryScreen from '../screens/AddStory/AddStoryScreen';
+import SavedWordsScreen from '../screens/WordsScreen/SavedWordsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -26,6 +27,11 @@ export default function RootNavigator() {
       <Stack.Screen
         name="AddStory"
         component={AddStoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SavedWords"
+        component={SavedWordsScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

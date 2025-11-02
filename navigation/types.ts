@@ -6,4 +6,5 @@ export type RootStackParamList = {
   StoryScreen: { story: History };
   Auth: undefined;
   AddStory: undefined;
+  SavedWords: { userId: string | undefined };
 };
