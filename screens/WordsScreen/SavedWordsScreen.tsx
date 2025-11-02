@@ -66,7 +66,9 @@ export default function SavedWordsScreen({ route, navigation }: Props) {
           </View>
         ))
       )}
-
+      <Text style={{ color: navTheme.colors.text, marginTop: 20 }}>
+        {JSON.stringify(words, null, 2)}
+      </Text>
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}

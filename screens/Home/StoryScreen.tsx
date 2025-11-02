@@ -15,21 +15,14 @@ import { History, Word } from '../../types/storiesTypes';
 import Sound from 'react-native-sound';
 import RNFS from 'react-native-fs';
 import { SERVER_URL } from '../../constants/constants';
-import { splitGermanText } from '../../utils/splitGermanText';
-
 import { useUserStore } from '../../state/userStore';
 import { saveUserWord } from '../../api/userWords';
 
 const { width } = Dimensions.get('window');
-
 const SYNC_OFFSET = 0.2;
 
 interface StoryScreenProps {
-  route: {
-    params: {
-      story: History;
-    };
-  };
+  route: { params: { story: History } };
   navigation: any;
 }
 
@@ -50,9 +43,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const [translation, setTranslation] = useState<string | null>(null);
   const [showSentenceTranslation, setShowSentenceTranslation] = useState(false);
 
-  // -------------------------------------------
-  // 🚀 Загружаем аудио
-  // -------------------------------------------
+  // -------------------- Audio --------------------
   useEffect(() => {
     const localPath = `${RNFS.CachesDirectoryPath}/${story.id}.mp3`;
 
@@ -71,12 +62,11 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     RNFS.exists(localPath)
       .then(exists => {
         if (exists) loadSound(localPath);
-        else {
+        else
           RNFS.downloadFile({
             fromUrl: `${SERVER_URL}${story.audioUrl}`,
             toFile: localPath,
           }).promise.then(() => loadSound(localPath));
-        }
       })
       .catch(err => {
         console.log('Ошибка при загрузке файла:', err);
@@ -89,12 +79,8 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     };
   }, []);
 
-  // -------------------------------------------
-  // ▶️ Аудио
-  // -------------------------------------------
   const playAudio = () => {
     if (!sound || isLoadingAudio) return;
-
     if (isPlaying) {
       sound.pause();
       stopSync();
@@ -130,76 +116,88 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     setTimer(null);
   };
 
-  // -------------------------------------------
-  // 🔠 Слова
-  // -------------------------------------------
-  const normalize = (str: string) =>
+  // -------------------- Word handling --------------------
+  const normalizeForHighlight = (str: string) =>
     str
       .replace(/[.,!?;:°]/g, '')
+      .replace(/^(der|die|das|ein|eine)\s+/i, '')
       .trim()
       .toLowerCase();
 
-  const removeArticle = (word: string) =>
-    word.replace(/^(der|die|das|ein|eine)\s+/i, '').toLowerCase();
-
   const handleWordPress = (word: string) => {
-    const cleanedWord = word.toLowerCase();
+    const cleanedWord = normalizeForHighlight(word);
 
     const found = story.words.find(w => {
       if (typeof w.word === 'string') {
-        return cleanedWord === w.word.toLowerCase();
+        const normalized = normalizeForHighlight(w.word);
+        return cleanedWord === normalized;
       }
       return false;
     });
 
     if (found) {
       setSelectedWord(word);
-      {
-        setTranslation(found.translation);
-      }
+      setTranslation(found.translation);
     } else {
       setSelectedWord(word);
       setTranslation('Перевод не найден');
     }
   };
 
+  // -------------------- Split text --------------------
+  const splitGermanText = (text: string): string[] => {
+    return text.match(/[\wÄÖÜäöüß]+|[.,!?;:"()«»—-]|\s+/g) || [text];
+  };
+
   const renderTextWithTouch = (text: string) => {
     const parts = splitGermanText(text);
-    return parts.map((word, index) => {
-      const cleaned = normalize(word);
-      const activeWordObj =
-        activeIndex !== null ? story.wordTiming[activeIndex] : null;
-      const isActive =
-        activeWordObj && normalize(activeWordObj.word) === cleaned;
-      const isSelected = selectedWord === cleaned;
 
-      return (
-        <TouchableOpacity
-          key={`word-${index}`}
-          onPress={() => handleWordPress(cleaned)}
-        >
-          <Text
-            style={[
-              styles.word,
-              {
-                color: navTheme.colors.text,
-                backgroundColor: isActive
-                  ? '#90EE90'
-                  : isSelected
-                  ? '#FFD700'
-                  : 'transparent',
-              },
-            ]}
-          >
-            {word}
-          </Text>
-        </TouchableOpacity>
-      );
-    });
+    return (
+      <Text style={{ flexWrap: 'wrap', lineHeight: 28 }}>
+        {parts.map((part, index) => {
+          // Слова кликабельные
+          if (/[\wÄÖÜäöüß]+/.test(part)) {
+            const isActive =
+              activeIndex !== null &&
+              normalizeForHighlight(
+                story.wordTiming[activeIndex]?.word || '',
+              ) === normalizeForHighlight(part);
+            const isSelected = selectedWord
+              ? normalizeForHighlight(selectedWord) ===
+                normalizeForHighlight(part)
+              : false;
+
+            return (
+              <Text
+                key={index}
+                onPress={() => handleWordPress(part)}
+                style={{
+                  backgroundColor: isActive
+                    ? '#90EE90'
+                    : isSelected
+                    ? '#FFD700'
+                    : 'transparent',
+                  fontSize: 18,
+                  lineHeight: 28,
+                }}
+              >
+                {part}
+              </Text>
+            );
+          }
+
+          // Остальные символы (пунктуация, пробелы)
+          return (
+            <Text key={index} style={{ fontSize: 18, lineHeight: 28 }}>
+              {part}
+            </Text>
+          );
+        })}
+      </Text>
+    );
   };
-  // -------------------------------------------
-  // 📝 Рендер предложений с переводом
-  // -------------------------------------------
+
+  // -------------------- Sentence rendering --------------------
   const renderStoryWithSentences = (deText: string, ruText: string) => {
     const deSentences = deText.match(/[^.!?]+[.!?]+/g) || [deText];
     const ruSentences = ruText.match(/[^.!?]+[.!?]+/g) || [ruText];
@@ -208,9 +206,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       const ruSentence = ruSentences[index] || '';
       return (
         <View key={`sentence-${index}`} style={{ marginBottom: 12 }}>
-          <Text style={styles.fullStory}>
-            {renderTextWithTouch(deSentence)}
-          </Text>
+          {renderTextWithTouch(deSentence)}
           <Text
             style={[
               styles.fullStory,
@@ -231,7 +227,8 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       );
     });
   };
-  /////////////////////
+
+  // -------------------- Add word --------------------
   const handleAddWord = async (wordText: string) => {
     if (!user) {
       Alert.alert('Войдите, чтобы сохранять слова');
@@ -243,17 +240,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       .replace(/[.,!?;:°]/g, '')
       .trim();
 
-    // Ищем слово в story.words
     const foundWord: Word | undefined = story.words.find(w => {
       if (!w.word) return false;
-
       if (typeof w.word === 'string') {
         const normalized = w.word
           .toLowerCase()
           .replace(/^(der|die|das|ein|eine)\s+/, '');
         return cleanedWordText === normalized;
       }
-
       return false;
     });
 
@@ -279,6 +273,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     }
   };
 
+  // -------------------- Render --------------------
   return (
     <View
       style={[
@@ -296,8 +291,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           {translation && (
             <View style={styles.translationOverlay}>
               <Text style={styles.translationText}>{translation}</Text>
-
-              {/* ✅ Кнопка добавить слово, если пользователь авторизован */}
               {user && selectedWord && (
                 <TouchableOpacity
                   style={styles.addWordButton}
@@ -312,7 +305,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           )}
         </View>
 
-        {/* Play */}
         <TouchableOpacity
           style={[
             styles.playButton,
@@ -330,7 +322,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           )}
         </TouchableOpacity>
 
-        {/* Заголовок */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: navTheme.colors.text }]}>
             {story.title.de}
@@ -340,7 +331,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           </View>
         </View>
 
-        {/* Кнопка для активации перевода по предложениям */}
         <TouchableOpacity
           style={styles.showButton}
           onPress={() => setShowSentenceTranslation(!showSentenceTranslation)}
@@ -350,18 +340,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           </Text>
         </TouchableOpacity>
 
-        {/* Основной текст */}
         {!showSentenceTranslation ? (
-          <Text style={styles.fullStory}>
-            {renderTextWithTouch(story.fullStory.de)}
-          </Text>
+          renderTextWithTouch(story.fullStory.de)
         ) : (
           <View>
             {renderStoryWithSentences(story.fullStory.de, story.fullStory.ru)}
           </View>
         )}
 
-        {/* Кнопка назад */}
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -369,6 +355,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           <Text style={{ color: '#fff', fontWeight: 'bold' }}>Назад</Text>
         </TouchableOpacity>
       </ScrollView>
+
       <TouchableOpacity
         style={styles.viewWordsButton}
         onPress={() => navigation.navigate('SavedWords', { userId: user?.id })}
@@ -381,9 +368,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   );
 }
 
-// -------------------------------------------
-// 🎨 Стили
-// -------------------------------------------
+// -------------------- Styles --------------------
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   imageWrapper: { position: 'relative', marginBottom: 16 },
@@ -417,7 +402,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     fontWeight: '500',
   },
-  word: { fontSize: 18, lineHeight: 28, paddingHorizontal: 2, borderRadius: 6 },
   playButton: {
     paddingVertical: 10,
     borderRadius: 12,
