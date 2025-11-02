@@ -18,6 +18,9 @@ import { useUserStore } from '../../state/userStore';
 import { getHistories } from '../../api/getHistories';
 import { History } from '../../types/storiesTypes';
 import { SERVER_URL } from '../../constants/constants';
+import { likeHistory, unlikeHistory } from '../../api/likeHistory'; // 🆕 добавлено
+import { User, UserState } from '../../types/userTypes';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 const { width, height } = Dimensions.get('window');
@@ -32,7 +35,7 @@ export default function HomeScreen() {
 
   const fetchHistories = async () => {
     try {
-      const data = await getHistories();
+      const data = await getHistories(user);
       setHistories(data);
     } catch (err: any) {
       setError(err.message);
@@ -41,9 +44,106 @@ export default function HomeScreen() {
     }
   };
 
+  /////////////////// logoutAndClear
+  const logoutAndClear = async () => {
+    const { logout } = useUserStore.getState(); // вызываем logout для очистки стейта
+    logout();
+
+    try {
+      await AsyncStorage.removeItem('user-storage'); // очищаем persist вручную
+    } catch (e) {
+      console.warn('Failed to clear AsyncStorage', e);
+    }
+
+    setHistories([]); // очищаем локальные истории
+  };
+
+  /////////////// Новая функция для обработки лайков
+  const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
+
+  const handleLike = async (story: History) => {
+    if (!user) return;
+
+    const storyId = story.id;
+    // если уже выполняется запрос по этой истории — игнорируем новый клик
+    if (pendingLikes.has(storyId)) return;
+
+    const alreadyLiked = !!story.likedByCurrentUser;
+
+    // оптимистичный локальный апдейт: сразу изменяем UI
+    setHistories(prev =>
+      prev.map(s =>
+        s.id === storyId
+          ? {
+              ...s,
+              likedByCurrentUser: !alreadyLiked,
+              likesCount: Math.max(0, s.likesCount + (alreadyLiked ? -1 : 1)),
+            }
+          : s,
+      ),
+    );
+
+    // помечаем как pending
+    setPendingLikes(prev => new Set(prev).add(storyId));
+
+    try {
+      if (alreadyLiked) {
+        const res = await unlikeHistory(storyId, user.id);
+        // если сервер возвращает актуальный likesCount, применить его
+        if (res?.likesCount !== undefined) {
+          setHistories(prev =>
+            prev.map(s =>
+              s.id === storyId
+                ? {
+                    ...s,
+                    likesCount: res.likesCount,
+                    likedByCurrentUser: false,
+                  }
+                : s,
+            ),
+          );
+        }
+      } else {
+        const res = await likeHistory(storyId, user.id);
+        if (res?.likesCount !== undefined) {
+          setHistories(prev =>
+            prev.map(s =>
+              s.id === storyId
+                ? { ...s, likesCount: res.likesCount, likedByCurrentUser: true }
+                : s,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      console.error('Ошибка лайка:', e);
+      // Откат: возвращаем предыдущее состояние (инвертируем обратно)
+      setHistories(prev =>
+        prev.map(s =>
+          s.id === storyId
+            ? {
+                ...s,
+                likedByCurrentUser: alreadyLiked,
+                likesCount: Math.max(0, s.likesCount + (alreadyLiked ? 1 : -1)),
+              }
+            : s,
+        ),
+      );
+      // можно показать уведомление пользователю
+      // showToast('Не удалось обновить лайк. Попробуйте ещё раз.');
+    } finally {
+      // снимаем pending
+      setPendingLikes(prev => {
+        const copy = new Set(prev);
+        copy.delete(storyId);
+        return copy;
+      });
+    }
+  };
+
   useEffect(() => {
     fetchHistories();
-  }, []);
+  }, [user]);
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
@@ -132,6 +232,23 @@ export default function HomeScreen() {
                     {story.title.ru}
                   </Text>
                 </ImageBackground>
+                <TouchableOpacity
+                  onPress={() => handleLike(story)}
+                  disabled={!user || pendingLikes.has(story.id)}
+                  style={[
+                    styles.likeButton,
+                    { opacity: !user || pendingLikes.has(story.id) ? 0.5 : 1 },
+                  ]}
+                >
+                  {pendingLikes.has(story.id) ? (
+                    <ActivityIndicator size="small" />
+                  ) : (
+                    <Text style={{ fontSize: 20 }}>
+                      {story.likedByCurrentUser ? '❤️' : '🤍'}
+                    </Text>
+                  )}
+                  <Text style={{ marginLeft: 4 }}>{story.likesCount || 0}</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
             ))}
         </ScrollView>
@@ -164,9 +281,32 @@ export default function HomeScreen() {
                   {story.title.ru}
                 </Text>
               </ImageBackground>
+              <TouchableOpacity
+                onPress={() => handleLike(story)}
+                disabled={!user || pendingLikes.has(story.id)}
+                style={[
+                  styles.likeButton,
+                  { opacity: !user || pendingLikes.has(story.id) ? 0.5 : 1 },
+                ]}
+              >
+                {pendingLikes.has(story.id) ? (
+                  <ActivityIndicator size="small" />
+                ) : (
+                  <Text style={{ fontSize: 20 }}>
+                    {story.likedByCurrentUser ? '❤️' : '🤍'}
+                  </Text>
+                )}
+                <Text style={{ marginLeft: 4 }}>{story.likesCount || 0}</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
           ))}
       </View>
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: '#dc3545', marginLeft: 8 }]}
+        onPress={logoutAndClear}
+      >
+        <Text style={styles.buttonText}>Очистить стейт</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -236,4 +376,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   storyText: { color: '#fff', fontSize: 16, fontWeight: '500' },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
 });

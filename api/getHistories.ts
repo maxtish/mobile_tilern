@@ -1,23 +1,26 @@
 import { SERVER_URL } from '../constants/constants';
 import { History } from '../types/storiesTypes';
+import { User } from '../types/userTypes';
 
-export async function getHistories(): Promise<History[]> {
+export async function getHistories(user: User | null): Promise<History[]> {
   try {
-    const res = await fetch(`${SERVER_URL}/history`, {
+    const query = user ? `?userId=${user.id}` : '';
+    const res = await fetch(`${SERVER_URL}/history${query}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
 
-    const data = await res.json();
-
     if (!res.ok) {
-      throw new Error(data.error || `Ошибка ${res.status}: ${res.statusText}`);
+      const errorData = await res.json();
+      throw new Error(
+        errorData.error || `Ошибка ${res.status}: ${res.statusText}`,
+      );
     }
 
+    const data = await res.json();
     return data as History[];
   } catch (err: any) {
+    console.error('Ошибка при получении историй:', err);
     throw new Error(err.message || 'Не удалось получить истории');
   }
 }

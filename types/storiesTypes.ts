@@ -1,5 +1,5 @@
 export interface History {
-  id: string | null;
+  id: string;
   title: { de: string; ru: string };
   description: string;
   fullStory: {
