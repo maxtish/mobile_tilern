@@ -60,9 +60,7 @@ export default function SavedWordsScreen({ route, navigation }: Props) {
         words.map((item, i) => (
           <View key={i} style={styles.wordItem}>
             <Text style={{ color: navTheme.colors.text, fontSize: 18 }}>
-              {typeof item.word.word === 'string'
-                ? item.word.word
-                : item.word.word.singular || ''}
+              {item.word.word}
             </Text>
             <Text style={{ color: '#aaa' }}>{item.word.translation}</Text>
           </View>

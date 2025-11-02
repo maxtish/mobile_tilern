@@ -30,15 +30,11 @@ export interface WordTiming {
 // Тип слова
 /////// Общий интерфейс для слова
 
-export interface BaseWord {
-  type: WordType; // тип слова
-  translation: string; // перевод слова на русский
-}
-export type WordType = 'noun' | 'verb' | 'other';
-
 export type Word = {
-  type: WordType;
-  word: string | { singular: string | null; plural: string | null };
+  type: string;
+  word: string;
+  plural: string;
+  singular: string;
   translation: string;
 };
 

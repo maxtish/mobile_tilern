@@ -146,11 +146,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     const cleanedWord = word.toLowerCase();
 
     const found = story.words.find(w => {
-      if (w.type === 'noun' && typeof w.word === 'object') {
-        const singular = removeArticle(w.word.singular || '');
-        const plural = removeArticle(w.word.plural || '');
-        return cleanedWord === singular || cleanedWord === plural;
-      } else if (typeof w.word === 'string') {
+      if (typeof w.word === 'string') {
         return cleanedWord === w.word.toLowerCase();
       }
       return false;
@@ -158,17 +154,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
     if (found) {
       setSelectedWord(word);
-      if (found.type === 'noun' && typeof found.word === 'object') {
-        const singular = removeArticle(found.word.singular || '');
-        const plural = removeArticle(found.word.plural || '');
-        const form =
-          cleanedWord === singular
-            ? '(singular)'
-            : cleanedWord === plural
-            ? '(plural)'
-            : '';
-        setTranslation(`${found.translation} ${form}`);
-      } else {
+      {
         setTranslation(found.translation);
       }
     } else {
@@ -260,16 +246,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     // Ищем слово в story.words
     const foundWord: Word | undefined = story.words.find(w => {
       if (!w.word) return false;
-
-      if (w.type === 'noun' && typeof w.word === 'object') {
-        const singular = (w.word.singular || '')
-          .toLowerCase()
-          .replace(/^(der|die|das|ein|eine)\s+/, '');
-        const plural = (w.word.plural || '')
-          .toLowerCase()
-          .replace(/^(der|die|das|ein|eine)\s+/, '');
-        return cleanedWordText === singular || cleanedWordText === plural;
-      }
 
       if (typeof w.word === 'string') {
         const normalized = w.word
