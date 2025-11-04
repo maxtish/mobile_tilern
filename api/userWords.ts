@@ -8,17 +8,17 @@ export const saveUserWord = async (
   word: Word,
 ) => {
   try {
-    // Сериализуем только необходимые поля Word
+    /* // Сериализуем только необходимые поля Word
     const wordPayload: any = {
       type: word.type,
-      word: word.word,
+      word: word,
       translation: word.translation,
     };
-
+*/
     const res = await fetch(`${SERVER_URL}/user/word`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, historyId, word: wordPayload }),
+      body: JSON.stringify({ userId, historyId, word: word }),
     });
 
     if (!res.ok) {
