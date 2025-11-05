@@ -179,6 +179,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
                     : 'transparent',
                   fontSize: 18,
                   lineHeight: 28,
+                  color: navTheme.colors.text,
                 }}
               >
                 {part}
@@ -188,7 +189,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
           // Остальные символы (пунктуация, пробелы)
           return (
-            <Text key={index} style={{ fontSize: 18, lineHeight: 28 }}>
+            <Text
+              key={index}
+              style={{
+                fontSize: 18,
+                lineHeight: 28,
+                color: navTheme.colors.text,
+              }}
+            >
               {part}
             </Text>
           );
@@ -199,24 +207,29 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
   // -------------------- Sentence rendering --------------------
   const renderStoryWithSentences = (deText: string, ruText: string) => {
-    const deSentences = deText.match(/[^.!?]+[.!?]+/g) || [deText];
-    const ruSentences = ruText.match(/[^.!?]+[.!?]+/g) || [ruText];
+    const deSentences = (deText.match(/[^.!?]+[.!?]+/g) || [deText])
+      .map(s => s.trim())
+      .filter(Boolean);
+    const ruSentences = (ruText.match(/[^.!?]+[.!?]+/g) || [ruText])
+      .map(s => s.trim())
+      .filter(Boolean);
 
     return deSentences.map((deSentence, index) => {
       const ruSentence = ruSentences[index] || '';
       return (
-        <View key={`sentence-${index}`} style={{ marginBottom: 12 }}>
+        <View key={`sentence-${index}`} style={{ margin: 0, padding: 0 }}>
           {renderTextWithTouch(deSentence)}
+
           <Text
             style={[
               styles.fullStory,
               {
-                color: navTheme.colors.text,
+                color: '#136680ff',
                 fontWeight: '400',
-                marginTop: 4,
-                backgroundColor: '#4e4e4e3a',
+                margin: 0,
+                padding: 0,
+
                 borderRadius: 8,
-                padding: 6,
                 fontSize: 16,
               },
             ]}
@@ -281,72 +294,76 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         { backgroundColor: navTheme.colors.background },
       ]}
     >
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.imageWrapper}>
-          <Image
-            source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
-            style={styles.image}
-            resizeMode="cover"
-          />
-          {translation && (
-            <View style={styles.translationOverlay}>
-              <Text style={styles.translationText}>{translation}</Text>
-              {user && selectedWord && (
-                <TouchableOpacity
-                  style={styles.addWordButton}
-                  onPress={() => handleAddWord(selectedWord)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                    Добавить слово
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={[
-            styles.playButton,
-            { backgroundColor: isLoadingAudio ? '#888' : '#1dad00ff' },
-          ]}
-          onPress={playAudio}
-          disabled={isLoadingAudio}
-        >
-          {isLoadingAudio ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.playButtonText}>
-              {isPlaying ? 'Pause' : 'Play'}
+      <View style={styles.imageWrapper}>
+        <Image
+          source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+        {translation && (
+          <View style={styles.translationOverlay}>
+            <Text style={styles.translationText}>
+              {`${selectedWord} - ${translation}`}
             </Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: navTheme.colors.text }]}>
-            {story.title.de}
-          </Text>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>{story.languageLevel}</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.showButton}
-          onPress={() => setShowSentenceTranslation(!showSentenceTranslation)}
-        >
-          <Text style={styles.showButtonText}>
-            {showSentenceTranslation ? 'Скрыть перевод ' : 'Показать перевод '}
-          </Text>
-        </TouchableOpacity>
-
-        {!showSentenceTranslation ? (
-          renderTextWithTouch(story.fullStory.de)
-        ) : (
-          <View>
-            {renderStoryWithSentences(story.fullStory.de, story.fullStory.ru)}
+            {user && selectedWord && (
+              <TouchableOpacity
+                style={styles.addWordButton}
+                onPress={() => handleAddWord(selectedWord)}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                  Добавить слово
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
+      </View>
+
+      <TouchableOpacity
+        style={[
+          styles.playButton,
+          { backgroundColor: isLoadingAudio ? '#888' : '#1dad00ff' },
+        ]}
+        onPress={playAudio}
+        disabled={isLoadingAudio}
+      >
+        {isLoadingAudio ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.playButtonText}>
+            {isPlaying ? 'Pause' : 'Play'}
+          </Text>
+        )}
+      </TouchableOpacity>
+
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: navTheme.colors.text }]}>
+          {story.title.de}
+        </Text>
+        <View style={styles.levelBadge}>
+          <Text style={styles.levelText}>{story.languageLevel}</Text>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={styles.showButton}
+        onPress={() => setShowSentenceTranslation(!showSentenceTranslation)}
+      >
+        <Text style={styles.showButtonText}>
+          {showSentenceTranslation ? 'Скрыть перевод ' : 'Показать перевод '}
+        </Text>
+      </TouchableOpacity>
+
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+          {!showSentenceTranslation ? (
+            renderTextWithTouch(story.fullStory.de)
+          ) : (
+            <View>
+              {renderStoryWithSentences(story.fullStory.de, story.fullStory.ru)}
+            </View>
+          )}
+        </ScrollView>
 
         <TouchableOpacity
           style={styles.backButton}
@@ -354,7 +371,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         >
           <Text style={{ color: '#fff', fontWeight: 'bold' }}>Назад</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
       <TouchableOpacity
         style={styles.viewWordsButton}
@@ -370,7 +387,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
 // -------------------- Styles --------------------
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
+  container: { flex: 1 },
   imageWrapper: { position: 'relative', marginBottom: 16 },
   image: { width: width - 32, height: 200, borderRadius: 16 },
   translationOverlay: {
@@ -397,8 +414,10 @@ const styles = StyleSheet.create({
   },
   levelText: { color: '#000', fontWeight: 'bold' },
   fullStory: {
+    margin: 0,
+    padding: 0,
     fontSize: 18,
-    lineHeight: 28,
+    lineHeight: 24,
     flexWrap: 'wrap',
     fontWeight: '500',
   },

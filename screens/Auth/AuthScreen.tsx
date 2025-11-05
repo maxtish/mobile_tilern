@@ -15,11 +15,13 @@ import { RootStackParamList } from '../../navigation/types';
 import { useUserStore } from '../../state/userStore';
 import { login } from '../../api/login';
 import { register } from '../../api/register';
+import { useAppTheme } from '../../theme/ThemeProvider';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
 export default function AuthScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { navTheme } = useAppTheme();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -65,11 +67,21 @@ export default function AuthScreen() {
   if (user) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Welcome!</Text>
-        <Text style={styles.infoText}>Name: {user.name}</Text>
-        <Text style={styles.infoText}>Email: {user.email}</Text>
-        <Text style={styles.infoText}>ID: {user.id}</Text>
-        <Text style={styles.infoText}>Role: {user.role}</Text>
+        <Text style={[styles.title, { color: navTheme.colors.text }]}>
+          Welcome!
+        </Text>
+        <Text style={[styles.infoText, { color: navTheme.colors.text }]}>
+          Name: {user.name}
+        </Text>
+        <Text style={[styles.infoText, { color: navTheme.colors.text }]}>
+          Email: {user.email}
+        </Text>
+        <Text style={[styles.infoText, { color: navTheme.colors.text }]}>
+          ID: {user.id}
+        </Text>
+        <Text style={[styles.infoText, { color: navTheme.colors.text }]}>
+          Role: {user.role}
+        </Text>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: '#dc3545' }]}
           onPress={logout}
@@ -83,14 +95,17 @@ export default function AuthScreen() {
   // Форма login/register
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{isLogin ? 'Login' : 'Register'}</Text>
+      <Text style={[styles.title, { color: navTheme.colors.text }]}>
+        {isLogin ? 'Login' : 'Register'}
+      </Text>
 
       {!isLogin && (
         <TextInput
           placeholder="Name"
           value={name}
           onChangeText={setName}
-          style={styles.input}
+          placeholderTextColor={navTheme.colors.text}
+          style={[styles.input, { color: navTheme.colors.text }]}
         />
       )}
 
@@ -100,7 +115,8 @@ export default function AuthScreen() {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
-        style={styles.input}
+        placeholderTextColor={navTheme.colors.text}
+        style={[styles.input, { color: navTheme.colors.text }]}
       />
 
       <TextInput
@@ -108,7 +124,8 @@ export default function AuthScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={styles.input}
+        placeholderTextColor={navTheme.colors.text}
+        style={[styles.input, { color: navTheme.colors.text }]}
       />
 
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>

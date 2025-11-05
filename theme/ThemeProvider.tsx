@@ -10,8 +10,8 @@ import {
 
 // ────────────── Типы контекста ──────────────
 type ThemeContextType = {
-  navTheme: Theme; // строго для NavigationContainer
-  appTheme: typeof appLightTheme; // кастомные поля приложения
+  navTheme: Theme; // для NavigationContainer
+  appTheme: typeof appLightTheme; // кастомная тема приложения
   toggleTheme: () => void;
   isDark: boolean;
 };
@@ -35,10 +35,10 @@ export const ThemeProvider: React.FC<Props> = ({ children }) => {
 
   const toggleTheme = () => setIsDark(prev => !prev);
 
-  // Навигационная тема — только поля, которые принимает NavigationContainer
+  // Навигационная тема для NavigationContainer
   const navTheme: Theme = isDark ? navDarkTheme : navLightTheme;
 
-  // Кастомная тема приложения (шрифты, spacing, цвета UI, тени)
+  // Кастомная тема для всего приложения
   const appTheme = isDark ? appDarkTheme : appLightTheme;
 
   return (

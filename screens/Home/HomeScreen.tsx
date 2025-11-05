@@ -19,7 +19,6 @@ import { getHistories } from '../../api/getHistories';
 import { History } from '../../types/storiesTypes';
 import { SERVER_URL } from '../../constants/constants';
 import { likeHistory, unlikeHistory } from '../../api/likeHistory'; // 🆕 добавлено
-import { User, UserState } from '../../types/userTypes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -150,10 +149,7 @@ export default function HomeScreen() {
   if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: navTheme.colors.background }}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 60 }}
-    >
+    <View style={{ flex: 1 }}>
       {/* Верхняя панель */}
       <View style={styles.header}>
         {user?.role === 'ADMIN' || user?.role === 'USER' ? (
@@ -175,7 +171,7 @@ export default function HomeScreen() {
               },
             ]}
           >
-            Добро пожаловать!
+            TiLern – Lies, lerne, sprich.
           </Text>
         )}
 
@@ -199,19 +195,15 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Горизонтальный скролл новых историй */}
-      <View style={{ height: height / 3, marginBottom: 20 }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.storyScroll}
-        >
+      <ScrollView style={{ flex: 1 }}>
+        {/* Вертикальный список обычных историй */}
+        <View style={styles.storyScroll}>
           {histories
             .filter(story => story)
             .map(story => (
               <TouchableOpacity
                 key={story.id}
-                style={styles.storyNewCard}
+                style={[styles.storyCard]}
                 onPress={() => navigation.navigate('StoryScreen', { story })}
               >
                 <ImageBackground
@@ -219,106 +211,71 @@ export default function HomeScreen() {
                   style={styles.storyImage}
                   imageStyle={{ borderRadius: 16 }}
                 >
+                  <TouchableOpacity
+                    onPress={() => handleLike(story)}
+                    disabled={!user || pendingLikes.has(story.id)}
+                    style={[
+                      styles.likeButton,
+                      {
+                        opacity: !user || pendingLikes.has(story.id) ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    {pendingLikes.has(story.id) ? (
+                      <ActivityIndicator size="small" />
+                    ) : (
+                      <Text style={{ fontSize: 20 }}>
+                        {story.likedByCurrentUser ? '❤️' : '🤍'}
+                      </Text>
+                    )}
+                    <Text style={{ marginLeft: 4, color: '#fff' }}>
+                      {story.likesCount || 0}
+                    </Text>
+                  </TouchableOpacity>
                   <View style={styles.levelBadge}>
                     <Text style={styles.levelText}>{story.languageLevel}</Text>
                   </View>
                   <View style={styles.overlay} />
-                  <Text
-                    style={styles.storyText}
-                    numberOfLines={3}
-                    ellipsizeMode="tail"
-                  >
-                    {story.title.ru}
-                  </Text>
-                </ImageBackground>
-                <TouchableOpacity
-                  onPress={() => handleLike(story)}
-                  disabled={!user || pendingLikes.has(story.id)}
-                  style={[
-                    styles.likeButton,
-                    { opacity: !user || pendingLikes.has(story.id) ? 0.5 : 1 },
-                  ]}
-                >
-                  {pendingLikes.has(story.id) ? (
-                    <ActivityIndicator size="small" />
-                  ) : (
-                    <Text style={{ fontSize: 20 }}>
-                      {story.likedByCurrentUser ? '❤️' : '🤍'}
+                  <View style={styles.storyContainerText}>
+                    <Text
+                      style={styles.storyTextTitle}
+                      numberOfLines={3}
+                      ellipsizeMode="tail"
+                    >
+                      {story.title.ru}
                     </Text>
-                  )}
-                  <Text style={{ marginLeft: 4 }}>{story.likesCount || 0}</Text>
-                </TouchableOpacity>
+                    <Text
+                      style={styles.storyTextDescription}
+                      numberOfLines={3}
+                      ellipsizeMode="tail"
+                    >
+                      {story.description}
+                    </Text>
+                  </View>
+                </ImageBackground>
               </TouchableOpacity>
             ))}
-        </ScrollView>
-      </View>
-
-      {/* Вертикальный список обычных историй */}
-      <View style={styles.storyScroll}>
-        {histories
-          .filter(story => story)
-          .map(story => (
-            <TouchableOpacity
-              key={story.id}
-              style={[styles.storyCard, { height: 200, marginBottom: 16 }]}
-              onPress={() => navigation.navigate('StoryScreen', { story })}
-            >
-              <ImageBackground
-                source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
-                style={styles.storyImage}
-                imageStyle={{ borderRadius: 16 }}
-              >
-                <View style={styles.levelBadge}>
-                  <Text style={styles.levelText}>{story.languageLevel}</Text>
-                </View>
-                <View style={styles.overlay} />
-                <Text
-                  style={styles.storyText}
-                  numberOfLines={3}
-                  ellipsizeMode="tail"
-                >
-                  {story.title.ru}
-                </Text>
-              </ImageBackground>
-              <TouchableOpacity
-                onPress={() => handleLike(story)}
-                disabled={!user || pendingLikes.has(story.id)}
-                style={[
-                  styles.likeButton,
-                  { opacity: !user || pendingLikes.has(story.id) ? 0.5 : 1 },
-                ]}
-              >
-                {pendingLikes.has(story.id) ? (
-                  <ActivityIndicator size="small" />
-                ) : (
-                  <Text style={{ fontSize: 20 }}>
-                    {story.likedByCurrentUser ? '❤️' : '🤍'}
-                  </Text>
-                )}
-                <Text style={{ marginLeft: 4 }}>{story.likesCount || 0}</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
-      </View>
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#dc3545', marginLeft: 8 }]}
-        onPress={logoutAndClear}
-      >
-        <Text style={styles.buttonText}>Очистить стейт</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        </View>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#dc3545', marginLeft: 8 }]}
+          onPress={logoutAndClear}
+        >
+          <Text style={styles.buttonText}>Очистить стейт</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 60 },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
-  title: { fontSize: 24 },
+  title: { fontSize: 18 },
   avatar: {
     width: 44,
     height: 44,
@@ -341,17 +298,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  storySection: { height: height / 3 },
-  storyScroll: { alignItems: 'center' },
-  storyCard: { width: width * 0.9, height: '90%', marginRight: 16 },
-  storyNewCard: { width: width * 0.6, height: '90%', marginRight: 16 },
+
+  storyScroll: { alignItems: 'center', gap: 30 },
+  storyCard: {
+    width: width * 0.9,
+    aspectRatio: 0.8,
+    borderRadius: 19,
+  },
+
   storyImage: {
     flex: 1,
     justifyContent: 'flex-end',
-    borderRadius: 16,
-    overflow: 'hidden',
-    padding: 12,
   },
+  storyContainerText: {
+    margin: 20,
+    padding: 10,
+    backgroundColor: '#383434ff',
+    borderRadius: 15,
+  },
+  storyTextTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 10,
+  },
+  storyTextDescription: { color: '#fff', fontSize: 14, fontWeight: '200' },
+
   levelBadge: {
     position: 'absolute',
     top: 12,
@@ -364,6 +336,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 2,
   },
+
+  likeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+
   levelText: {
     color: '#000',
     fontWeight: 'bold',
@@ -373,12 +358,5 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 16,
-  },
-  storyText: { color: '#fff', fontSize: 16, fontWeight: '500' },
-  likeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
   },
 });

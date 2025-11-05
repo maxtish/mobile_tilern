@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { useUserStore } from '../../state/userStore';

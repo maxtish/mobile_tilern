@@ -164,7 +164,7 @@ export default function TrainingScreen({ route }: Props) {
 
     return (
       <View style={styles.card}>
-        <Text style={styles.wordText}>
+        <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
           <Text style={{ color: colors[article] }}>{article}</Text> {mainWord}
         </Text>
         {showTranslation && (
