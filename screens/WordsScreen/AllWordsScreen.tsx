@@ -64,10 +64,10 @@ export default function AllWordsScreen() {
         const mainWord = rest.join(' ');
         return (
           <View key={word.id} style={styles.wordRow}>
-            <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
+            <Text style={[styles.wordText, { color: '#ffffffff' }]}>
               <Text style={{ fontWeight: 'bold', color: '#007bff' }}>
-                {article}
-              </Text>{' '}
+                {article}{' '}
+              </Text>
               {mainWord} — {word.word.translation}
             </Text>
             <TouchableOpacity
@@ -84,7 +84,7 @@ export default function AllWordsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: {},
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: 'bold', marginBottom: 16 },
   wordRow: {
@@ -92,11 +92,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
-    backgroundColor: '#f1f1f1',
+    backgroundColor: '#423e3eff',
     padding: 12,
     borderRadius: 10,
   },
-  wordText: { fontSize: 18 },
+  wordText: { fontSize: 18, maxWidth: '70%' },
   deleteButton: {
     backgroundColor: '#dc3545',
     paddingVertical: 6,

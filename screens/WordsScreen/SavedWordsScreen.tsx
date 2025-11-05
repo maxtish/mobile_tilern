@@ -212,13 +212,15 @@ export default function TrainingScreen({ route }: Props) {
             {
               borderColor: navTheme.colors.text,
               color: navTheme.colors.text,
-              backgroundColor: isCorrect === false ? '#ffeded' : '#fff',
+              backgroundColor:
+                isCorrect === false ? '#661a1aff' : navTheme.colors.background,
             },
+            { color: navTheme.colors.text },
           ]}
           value={userInput}
           onChangeText={setUserInput}
-          placeholder="Введите немецкое слово с артиклем"
-          placeholderTextColor="#aaa"
+          placeholder="Введите немецкое слово "
+          placeholderTextColor={navTheme.colors.text}
         />
 
         {!isCorrect && (
@@ -233,7 +235,7 @@ export default function TrainingScreen({ route }: Props) {
               style={[
                 styles.translationText,
                 {
-                  color: colors[article],
+                  color: colors[article] || navTheme.colors.text,
                   opacity: showAnswer ? 1 : 0.3,
                   fontSize: 20,
                 },
