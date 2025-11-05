@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 
 import { useAppTheme } from '../../theme/ThemeProvider';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useUserStore } from '../../state/userStore';
@@ -32,6 +32,12 @@ export default function HomeScreen() {
   const [histories, setHistories] = useState<History[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchHistories();
+    }, [user]),
+  );
 
   const fetchHistories = async () => {
     try {
@@ -141,10 +147,6 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchHistories();
-  }, [user]);
-
   if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
@@ -161,9 +163,6 @@ export default function HomeScreen() {
               onPress={() => navigation.navigate('AddStory')}
             >
               <Text style={styles.buttonText}>Добавить историю</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => fetchHistories()}>
-              <Text>🔄</Text>
             </TouchableOpacity>
           </>
         ) : (

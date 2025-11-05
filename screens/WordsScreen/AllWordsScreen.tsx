@@ -28,29 +28,12 @@ export default function AllWordsScreen() {
   };
 
   const handleDelete = async (id: string) => {
-    Alert.alert(
-      'Удаление слова',
-      'Вы уверены, что хотите удалить это слово?',
-      [
-        {
-          text: 'Отмена',
-          style: 'cancel',
-        },
-        {
-          text: 'Удалить',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await deleteUserWord(id);
-            if (success) {
-              setWords(words.filter(w => w.id !== id));
-            } else {
-              Alert.alert('Ошибка', 'Не удалось удалить слово');
-            }
-          },
-        },
-      ],
-      { cancelable: true },
-    );
+    const success = await deleteUserWord(id);
+    if (success) {
+      setWords(words.filter(w => w.id !== id));
+    } else {
+      console.error(`Не удалось удалить слово ${id}`);
+    }
   };
 
   useEffect(() => {
