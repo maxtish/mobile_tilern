@@ -1,0 +1,125 @@
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { useAppTheme } from '../../theme/ThemeProvider';
+import { useUserStore } from '../../state/userStore';
+import { TrainingWord } from '../../types/userWord';
+import { deleteUserWord, getUserWords } from '../../api/userWords';
+
+export default function AllWordsScreen() {
+  const { navTheme } = useAppTheme();
+  const { user } = useUserStore();
+  const [words, setWords] = useState<TrainingWord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchWords = async () => {
+    if (!user) return;
+    setLoading(true);
+    const res = await getUserWords(user.id);
+    setWords(res);
+    setLoading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    Alert.alert(
+      'Удаление слова',
+      'Вы уверены, что хотите удалить это слово?',
+      [
+        {
+          text: 'Отмена',
+          style: 'cancel',
+        },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await deleteUserWord(id);
+            if (success) {
+              setWords(words.filter(w => w.id !== id));
+            } else {
+              Alert.alert('Ошибка', 'Не удалось удалить слово');
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  useEffect(() => {
+    fetchWords();
+  }, []);
+
+  if (loading) {
+    return (
+      <View
+        style={[styles.center, { backgroundColor: navTheme.colors.background }]}
+      >
+        <ActivityIndicator size="large" color="#FFD700" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: navTheme.colors.background },
+      ]}
+    >
+      <Text style={[styles.title, { color: navTheme.colors.text }]}>
+        Все слова
+      </Text>
+      {words.map(word => {
+        const [article, ...rest] = word.word.word.split(' ');
+        const mainWord = rest.join(' ');
+        return (
+          <View key={word.id} style={styles.wordRow}>
+            <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
+              <Text style={{ fontWeight: 'bold', color: '#007bff' }}>
+                {article}
+              </Text>{' '}
+              {mainWord} — {word.word.translation}
+            </Text>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDelete(word.id)}
+            >
+              <Text style={styles.deleteButtonText}>Удалить</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { padding: 16 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 16 },
+  wordRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: '#f1f1f1',
+    padding: 12,
+    borderRadius: 10,
+  },
+  wordText: { fontSize: 18 },
+  deleteButton: {
+    backgroundColor: '#dc3545',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  deleteButtonText: { color: '#fff', fontWeight: 'bold' },
+});

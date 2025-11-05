@@ -7,4 +7,5 @@ export type RootStackParamList = {
   Auth: undefined;
   AddStory: undefined;
   SavedWords: { userId: string | undefined };
+  AllWords: undefined;
 };

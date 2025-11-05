@@ -7,6 +7,7 @@ import StoryScreen from '../screens/Home/StoryScreen';
 import AuthScreen from '../screens/Auth/AuthScreen';
 import AddStoryScreen from '../screens/AddStory/AddStoryScreen';
 import SavedWordsScreen from '../screens/WordsScreen/SavedWordsScreen';
+import AllWordsScreen from '../screens/WordsScreen/AllWordsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -32,6 +33,11 @@ export default function RootNavigator() {
       <Stack.Screen
         name="SavedWords"
         component={SavedWordsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AllWords"
+        component={AllWordsScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

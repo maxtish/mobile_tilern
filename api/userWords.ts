@@ -1,6 +1,7 @@
 // api/userWords.ts
 import { SERVER_URL } from '../constants/constants';
 import { Word } from '../types/storiesTypes';
+import { apiFetch } from './apiFetch';
 
 export const saveUserWord = async (
   userId: string,
@@ -45,5 +46,18 @@ export const getUserWords = async (userId: string) => {
   } catch (e) {
     console.error('Ошибка получения слов:', e);
     return [];
+  }
+};
+
+// Удаляем слово по ID
+
+export const deleteUserWord = async (id: string): Promise<boolean> => {
+  try {
+    const res = await apiFetch(`/user-words/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    return data.success === true;
+  } catch (err) {
+    console.error('🚨 Ошибка при удалении слова:', err);
+    return false;
   }
 };

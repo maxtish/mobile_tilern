@@ -41,6 +41,11 @@ export default function TrainingScreen({ route }: Props) {
   const [showAnswer, setShowAnswer] = useState(false);
   const [wordsCount, setWordsCount] = useState(0);
 
+  /////прогресс
+
+  const totalWords = words.length;
+  const passedCount = words.filter(w => w.passedCorrectly).length;
+
   // Цвета для артиклей
   const colors: Record<string, string> = {
     der: '#007bff',
@@ -263,6 +268,7 @@ export default function TrainingScreen({ route }: Props) {
         <Text style={{ color: navTheme.colors.text, fontSize: 18 }}>
           Тренировка завершена! Все слова пройдены.
         </Text>
+
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -287,9 +293,30 @@ export default function TrainingScreen({ route }: Props) {
         <Text style={[styles.title, { color: navTheme.colors.text }]}>
           Тренировка слов
         </Text>
+
+        {/* 📊 Прогресс */}
+        <View style={styles.progressContainer}>
+          <Text style={[styles.progressText, { color: navTheme.colors.text }]}>
+            Пройдено: {passedCount} из {totalWords}
+          </Text>
+          <View style={styles.progressBarBackground}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${(passedCount / totalWords) * 100}%` },
+              ]}
+            />
+          </View>
+        </View>
+
         {round === 1 ? renderRound1() : renderRound2()}
       </ScrollView>
-
+      <TouchableOpacity
+        style={[styles.backButton, { backgroundColor: '#28a745' }]}
+        onPress={() => navigation.navigate('AllWords')}
+      >
+        <Text style={styles.backButtonText}>Все слова</Text>
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
@@ -344,5 +371,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
+  },
+  progressContainer: {
+    marginBottom: 16,
+  },
+  progressText: {
+    fontSize: 16,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  progressBarBackground: {
+    height: 10,
+    backgroundColor: '#ccc',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#007bff',
+    borderRadius: 5,
   },
 });
