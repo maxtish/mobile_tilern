@@ -17,6 +17,7 @@ import RNFS from 'react-native-fs';
 import { SERVER_URL } from '../../constants/constants';
 import { useUserStore } from '../../state/userStore';
 import { saveUserWord } from '../../api/userWords';
+import { mergeTimings } from '../../utils/mergeTimings';
 
 // Получаем ширину экрана для адаптивных размеров
 const { width } = Dimensions.get('window');
@@ -32,6 +33,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const user = useUserStore(state => state.user); // Получаем текущего пользователя из стора
   const { navTheme } = useAppTheme(); // Тема приложения
   const { story } = route.params; // История из параметров
+
+  // После загрузки истории
+  useEffect(() => {
+    if (story?.fullStory?.de && story?.wordTiming?.length) {
+      const aligned = mergeTimings(story.fullStory.de, story.wordTiming);
+      story.wordTiming = aligned; // обновляем выровненные тайминги
+    }
+  }, [story]);
 
   // -------------------- Состояния --------------------
   const [sound, setSound] = useState<Sound | null>(null); // Объект аудио
@@ -110,14 +119,17 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   // -------------------- Синхронизация подсветки слов --------------------
   const startSync = (soundInstance: Sound) => {
     const id = setInterval(() => {
-    soundInstance.getCurrentTime(seconds => {
-  const adjustedTime = seconds + SYNC_OFFSET;
-  const index = story.wordTiming.findIndex(
-    w => adjustedTime >= w.start && adjustedTime <= w.end,
-  );
-  if (index !== activeIndex) {
-    setActiveIndex(index >= 0 ? index : null);
-  }})})};
+      soundInstance.getCurrentTime(seconds => {
+        const adjustedTime = seconds + SYNC_OFFSET;
+        const index = story.wordTiming.findIndex(
+          w => adjustedTime >= w.start && adjustedTime <= w.end,
+        );
+        if (index !== activeIndex) {
+          setActiveIndex(index >= 0 ? index : null);
+        }
+      });
+    });
+  };
 
   const stopSync = () => {
     if (timer) clearInterval(timer);
@@ -161,63 +173,36 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
   // -------------------- Отрисовка текста с кликабельными словами --------------------
   const renderTextWithTouch = (text: string) => {
-    const parts = splitGermanText(text);
-
-    let timingCursor = 0; // Курсор для синхронизации с wordTiming
+    const words = story.wordTiming; // после mergeTimings это уже выровненные слова с таймингами
 
     return (
       <Text style={{ flexWrap: 'wrap', lineHeight: 28 }}>
-        {parts.map((part, index) => {
-          if (/[\wÄÖÜäöüß]+/.test(part)) {
-            // Для слов
-            const currentWordTiming = story.wordTiming[timingCursor];
-            const isActive =
-              activeIndex === timingCursor && currentWordTiming?.word
-                ? normalizeForHighlight(currentWordTiming.word) ===
-                  normalizeForHighlight(part)
-                : false;
+        {words.map((w, index) => {
+          const isActive = activeIndex === index;
+          const isSelected =
+            selectedWord &&
+            normalizeForHighlight(selectedWord) ===
+              normalizeForHighlight(w.word);
 
-            const isSelected = selectedWord
-              ? normalizeForHighlight(selectedWord) ===
-                normalizeForHighlight(part)
-              : false;
-
-            timingCursor += 1; // Продвигаем курсор
-
-            return (
-              <Text
-                key={index}
-                onPress={() => {
-                  setSelectedIndex(index);
-                  handleWordPress(part);
-                }} // Обработка нажатия
-                style={{
-                  backgroundColor: isActive
-                    ? '#90EE90'
-                    : selectedIndex === index
-                    ? '#FFD700'
-                    : 'transparent',
-                  fontSize: 18,
-                  lineHeight: 28,
-                  color: navTheme.colors.text,
-                }}
-              >
-                {part}
-              </Text>
-            );
-          }
-
-          // Для пробелов и пунктуации
           return (
             <Text
               key={index}
+              onPress={() => {
+                setSelectedIndex(index);
+                handleWordPress(w.word);
+              }}
               style={{
+                backgroundColor: isActive
+                  ? '#90EE90'
+                  : selectedIndex === index
+                  ? '#FFD700'
+                  : 'transparent',
                 fontSize: 18,
                 lineHeight: 28,
                 color: navTheme.colors.text,
               }}
             >
-              {part}
+              {w.word + ' '}
             </Text>
           );
         })}
