@@ -34,14 +34,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const { navTheme } = useAppTheme(); // Тема приложения
   const { story } = route.params; // История из параметров
 
-  // После загрузки истории
+  /*// После загрузки истории
   useEffect(() => {
     if (story?.fullStory?.de && story?.wordTiming?.length) {
       const aligned = mergeTimings(story.fullStory.de, story.wordTiming);
       story.wordTiming = aligned; // обновляем выровненные тайминги
     }
   }, [story]);
-
+*/
   // -------------------- Состояния --------------------
   const [sound, setSound] = useState<Sound | null>(null); // Объект аудио
   const [isPlaying, setIsPlaying] = useState(false); // Статус воспроизведения
@@ -53,6 +53,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
   const [selectedWord, setSelectedWord] = useState<string | null>(null); // Выбранное слово при нажатии
   const [translation, setTranslation] = useState<string | null>(null); // Перевод выбранного слова
+  const [baseFormText, setBaseFormText] = useState<string | null>(null); // Базовая форма выбранного слова
   const [showSentenceTranslation, setShowSentenceTranslation] = useState(false); // Флаг показа перевода предложений
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null); ///Чтобы подсвечивался только кликнутый экземпляр
 
@@ -160,6 +161,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     if (found) {
       setSelectedWord(word);
       setTranslation(found.translation); // Сохраняем перевод
+      setBaseFormText(found.baseForm);
     } else {
       setSelectedWord(word);
       setTranslation('Перевод не найден');
@@ -309,7 +311,9 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         {translation && (
           <View style={styles.translationOverlay}>
             <Text style={styles.translationText}>
-              {`${selectedWord} - ${translation}`}
+              {baseFormText
+                ? `${baseFormText} - ${translation}`
+                : `${selectedWord} - ${translation}`}
             </Text>
             {user && selectedWord && (
               <TouchableOpacity
