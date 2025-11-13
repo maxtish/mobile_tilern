@@ -11,13 +11,12 @@ import {
   Alert,
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
-import { History, Word } from '../../types/storiesTypes';
+import { History, Word, WordTiming } from '../../types/storiesTypes';
 import Sound from 'react-native-sound';
 import RNFS from 'react-native-fs';
 import { SERVER_URL } from '../../constants/constants';
 import { useUserStore } from '../../state/userStore';
 import { saveUserWord } from '../../api/userWords';
-import { mergeTimings } from '../../utils/mergeTimings';
 
 // Получаем ширину экрана для адаптивных размеров
 const { width } = Dimensions.get('window');
@@ -34,15 +33,8 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const { navTheme } = useAppTheme(); // Тема приложения
   const { story } = route.params; // История из параметров
 
-  /*// После загрузки истории
-  useEffect(() => {
-    if (story?.fullStory?.de && story?.wordTiming?.length) {
-      const aligned = mergeTimings(story.fullStory.de, story.wordTiming);
-      story.wordTiming = aligned; // обновляем выровненные тайминги
-    }
-  }, [story]);
-*/
   // -------------------- Состояния --------------------
+
   const [sound, setSound] = useState<Sound | null>(null); // Объект аудио
   const [isPlaying, setIsPlaying] = useState(false); // Статус воспроизведения
   const [isLoadingAudio, setIsLoadingAudio] = useState(true); // Статус загрузки аудио
@@ -56,6 +48,27 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const [baseFormText, setBaseFormText] = useState<string | null>(null); // Базовая форма выбранного слова
   const [showSentenceTranslation, setShowSentenceTranslation] = useState(false); // Флаг показа перевода предложений
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null); ///Чтобы подсвечивался только кликнутый экземпляр
+
+  // refs и состояния (вместо прежних)
+  const scrollViewRef = React.useRef<ScrollView | null>(null);
+  const wordLayouts = React.useRef<{
+    [key: number]: { y: number; height: number };
+  }>({});
+
+  useEffect(() => {
+    if (
+      activeIndex !== null &&
+      scrollViewRef.current &&
+      wordLayouts.current[activeIndex]
+    ) {
+      const { y, height } = wordLayouts.current[activeIndex];
+      scrollViewRef.current.scrollTo({ y: y - 50, animated: true }); // offset, чтобы слово было немного сверху
+    }
+  }, [activeIndex]);
+
+  useEffect(() => {
+    wordLayouts.current = {}; // сброс
+  }, [showSentenceTranslation]);
 
   // -------------------- Работа с аудио --------------------
   useEffect(() => {
@@ -130,6 +143,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         }
       });
     });
+    setTimer(id);
   };
 
   const stopSync = () => {
@@ -137,6 +151,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     setTimer(null);
   };
 
+  ////////////////////////////////
   // -------------------- Обработка слов --------------------
   // Нормализация слов для подсветки и поиска
   const normalizeForHighlight = (str: string) =>
@@ -168,18 +183,11 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     }
   };
 
-  // -------------------- Разделение текста на слова и знаки --------------------
-  const splitGermanText = (text: string): string[] => {
-    return text.match(/[\wÄÖÜäöüß]+|[.,!?;:"()«»—-]|\s+/g) || [text];
-  };
-
   // -------------------- Отрисовка текста с кликабельными словами --------------------
-  const renderTextWithTouch = (text: string) => {
-    const words = story.wordTiming; // после mergeTimings это уже выровненные слова с таймингами
-
+  const renderTextWithTouch = (wordTiming: WordTiming[]) => {
     return (
-      <Text style={{ flexWrap: 'wrap', lineHeight: 28 }}>
-        {words.map((w, index) => {
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {wordTiming.map((w, index) => {
           const isActive = activeIndex === index;
           const isSelected =
             selectedWord &&
@@ -187,64 +195,111 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
               normalizeForHighlight(w.word);
 
           return (
-            <Text
+            <View
               key={index}
-              onPress={() => {
-                setSelectedIndex(index);
-                handleWordPress(w.word);
-              }}
-              style={{
-                backgroundColor: isActive
-                  ? '#90EE90'
-                  : selectedIndex === index
-                  ? '#FFD700'
-                  : 'transparent',
-                fontSize: 18,
-                lineHeight: 28,
-                color: navTheme.colors.text,
+              onLayout={event => {
+                wordLayouts.current[index] = event.nativeEvent.layout;
               }}
             >
-              {w.word + ' '}
-            </Text>
+              <Text
+                onPress={() => {
+                  setSelectedIndex(index);
+                  handleWordPress(w.word);
+                }}
+                style={{
+                  backgroundColor: isActive
+                    ? '#8cb98cff'
+                    : selectedIndex === index
+                    ? '#FFD700'
+                    : 'transparent',
+                  fontSize: 18,
+                  lineHeight: 28,
+                  color: navTheme.colors.text,
+                }}
+              >
+                {w.word + ' '}
+              </Text>
+            </View>
           );
         })}
-      </Text>
+      </View>
     );
   };
 
   // -------------------- Отображение предложений с переводом --------------------
-  const renderStoryWithSentences = (deText: string, ruText: string) => {
-    const deSentences = (deText.match(/[^.!?]+[.!?]+/g) || [deText])
-      .map(s => s.trim())
-      .filter(Boolean);
-    const ruSentences = (ruText.match(/[^.!?]+[.!?]+/g) || [ruText])
+  const renderTextWithTranslation = (
+    wordTiming: WordTiming[],
+    ruText: string,
+  ) => {
+    const deSentences = groupWordsIntoSentences(wordTiming);
+    const ruSentencesArr = (ruText.match(/[^.!?]+[.!?]+/g) || [ruText])
       .map(s => s.trim())
       .filter(Boolean);
 
-    return deSentences.map((deSentence, index) => {
-      const ruSentence = ruSentences[index] || '';
-      return (
-        <View key={`sentence-${index}`} style={{ margin: 0, padding: 0 }}>
-          {renderTextWithTouch(deSentence)}
+    return (
+      <View>
+        {deSentences.map((sentenceWords, index) => {
+          const ruSentence = ruSentencesArr[index] || '';
 
-          <Text
-            style={[
-              styles.fullStory,
-              {
-                color: '#136680ff',
-                fontWeight: '400',
-                margin: 0,
-                padding: 0,
-                borderRadius: 8,
-                fontSize: 16,
-              },
-            ]}
-          >
-            {ruSentence}
-          </Text>
-        </View>
-      );
+          return (
+            <View key={index} style={{ marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {sentenceWords.map(w => (
+                  <Text
+                    key={w.globalIndex}
+                    onLayout={event => {
+                      wordLayouts.current[w.globalIndex] =
+                        event.nativeEvent.layout;
+                    }}
+                    onPress={() => {
+                      setSelectedIndex(w.globalIndex);
+                      handleWordPress(w.word);
+                    }}
+                    style={{
+                      backgroundColor:
+                        activeIndex === w.globalIndex
+                          ? '#8cb98cff'
+                          : selectedIndex === w.globalIndex
+                          ? '#FFD700'
+                          : 'transparent',
+                      fontSize: 18,
+                      lineHeight: 28,
+                      color: navTheme.colors.text,
+                    }}
+                  >
+                    {w.word + ' '}
+                  </Text>
+                ))}
+              </View>
+              {ruSentence ? (
+                <Text style={{ marginTop: 4, fontSize: 16, color: 'gray' }}>
+                  {ruSentence}
+                </Text>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+  ///////
+  const groupWordsIntoSentences = (wordTiming: WordTiming[]) => {
+    const sentences: (WordTiming & { globalIndex: number })[][] = [];
+    let currentSentence: (WordTiming & { globalIndex: number })[] = [];
+
+    wordTiming.forEach((w, idx) => {
+      currentSentence.push({ ...w, globalIndex: idx });
+      if (/[.!?]$/.test(w.word)) {
+        sentences.push(currentSentence);
+        currentSentence = [];
+      }
     });
+
+    if (currentSentence.length) {
+      sentences.push(currentSentence);
+    }
+
+    return sentences;
   };
 
   // -------------------- Добавление слова в пользовательский словарь --------------------
@@ -254,10 +309,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       return;
     }
 
-    const cleanedWordText = wordText
-      .toLowerCase()
-      .replace(/[.,!?;:°]/g, '')
-      .trim();
+    const cleanedWordText = wordText.toLowerCase().trim();
 
     const foundWord: Word | undefined = story.words.find(w => {
       if (!w.word) return false;
@@ -369,14 +421,13 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
       {/* Основной текст истории */}
       <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-          {!showSentenceTranslation ? (
-            renderTextWithTouch(story.fullStory.de)
-          ) : (
-            <View>
-              {renderStoryWithSentences(story.fullStory.de, story.fullStory.ru)}
-            </View>
-          )}
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          {showSentenceTranslation
+            ? renderTextWithTranslation(story.wordTiming, story.fullStory.ru)
+            : renderTextWithTouch(story.wordTiming)}
         </ScrollView>
 
         {/* Кнопка возврата */}

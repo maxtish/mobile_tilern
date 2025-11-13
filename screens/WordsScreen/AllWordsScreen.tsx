@@ -68,7 +68,7 @@ export default function AllWordsScreen() {
               <Text style={{ fontWeight: 'bold', color: '#007bff' }}>
                 {article}{' '}
               </Text>
-              {mainWord} — {word.word.translation}
+              {word.word.baseForm} — {word.word.translation}
             </Text>
             <TouchableOpacity
               style={styles.deleteButton}

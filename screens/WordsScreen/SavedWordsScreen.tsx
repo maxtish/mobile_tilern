@@ -142,7 +142,9 @@ export default function TrainingScreen({ route }: Props) {
   // -------------------------
   const checkAnswer = () => {
     if (!currentWord) return;
-    const correctWord = currentWord.word.word.trim().toLowerCase();
+    const correctWord = currentWord.word.baseForm
+      ? currentWord.word.baseForm.trim().toLowerCase()
+      : currentWord.word.word.trim().toLowerCase();
     const inputWord = userInput.trim().toLowerCase();
     const correct = correctWord === inputWord;
     setIsCorrect(correct);
@@ -159,7 +161,7 @@ export default function TrainingScreen({ route }: Props) {
   // -------------------------
   const renderRound1 = () => {
     if (!currentWord) return null;
-    const [article, ...rest] = currentWord.word.word.split(' ');
+    const [article, ...rest] = currentWord.word.baseForm.split(' ');
     const mainWord = rest.join(' ');
 
     return (
