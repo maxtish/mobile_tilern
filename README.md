@@ -27,5 +27,8 @@ app/
 
 # Getting Started
 
- npx react-native run-android
- ./gradlew clean
+npx react-native run-android
+./gradlew clean
+
+cd android
+./gradlew assembleRelease
