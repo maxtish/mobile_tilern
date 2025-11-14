@@ -41,13 +41,15 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
               onPress={() => onWordPress(w.word, index)}
               style={{
                 backgroundColor: isActive
-                  ? '#8cb98cff'
+                  ? '#5e5d5cff'
                   : selectedIndex === index
-                  ? '#FFD700'
+                  ? '#5e5d5cff'
                   : 'transparent',
+
                 fontSize: 18,
                 lineHeight: 28,
                 color: navTheme.colors.text,
+                borderRadius: 4,
               }}
             >
               {w.word + ' '}

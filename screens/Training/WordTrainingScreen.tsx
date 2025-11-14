@@ -161,13 +161,29 @@ export default function TrainingScreen({ route }: Props) {
   // -------------------------
   const renderRound1 = () => {
     if (!currentWord) return null;
-    const [article, ...rest] = currentWord.word.baseForm.split(' ');
-    const mainWord = rest.join(' ');
+
+    const baseForm = currentWord.word.baseForm
+      ? currentWord.word.baseForm
+      : currentWord.word.word;
+    let article = '';
+    let mainWord = baseForm;
+
+    // Разделяем только если есть пробел
+    if (baseForm.includes(' ')) {
+      const parts = baseForm.split(' ');
+      article = parts[0];
+      mainWord = parts.slice(1).join(' ');
+    }
 
     return (
       <View style={styles.card}>
         <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
-          <Text style={{ color: colors[article] }}>{article}</Text> {mainWord}
+          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>
+            <Text style={{ color: colors[article] || navTheme.colors.text }}>
+              {article}{' '}
+            </Text>
+            <Text style={{ color: navTheme.colors.text }}>{mainWord}</Text>
+          </Text>
         </Text>
         {showTranslation && (
           <Text

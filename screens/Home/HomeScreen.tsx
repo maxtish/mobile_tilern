@@ -70,7 +70,13 @@ export default function HomeScreen() {
   if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: navTheme.colors.background,
+        marginTop: 5,
+      }}
+    >
       {/* Верхняя панель */}
       <View style={styles.header}>
         {user?.role === 'ADMIN' || user?.role === 'USER' ? (
@@ -116,7 +122,10 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView
+        key={histories.length}
+        contentContainerStyle={{ flexGrow: 1, paddingVertical: 20 }}
+      >
         {/* Вертикальный список обычных историй */}
         <View style={styles.storyScroll}>
           {histories
@@ -220,11 +229,12 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
-  storyScroll: { alignItems: 'center', gap: 30 },
+  storyScroll: { alignItems: 'center' },
   storyCard: {
     width: width * 0.9,
     aspectRatio: 0.8,
     borderRadius: 19,
+    marginBottom: 30,
   },
 
   storyImage: {

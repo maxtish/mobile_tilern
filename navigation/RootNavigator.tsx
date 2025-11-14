@@ -24,7 +24,11 @@ export default function RootNavigator() {
         component={StoryScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen name="Auth" component={AuthScreen} />
+      <Stack.Screen
+        name="Auth"
+        component={AuthScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name="AddStory"
         component={AddStoryScreen}

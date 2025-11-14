@@ -67,14 +67,18 @@ export default function AuthScreen() {
   if (user) {
     return (
       <View style={styles.container}>
-        <Text style={[styles.title, { color: navTheme.colors.text }]}>
-          Welcome!
-        </Text>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#28a745' }]}
+          onPress={() => navigation.navigate('Home')}
+        >
+          <Text style={styles.buttonText}>На главную</Text>
+        </TouchableOpacity>
+
         <Text style={[styles.infoText, { color: navTheme.colors.text }]}>
           Name: {user.name}
         </Text>
         <Text style={[styles.infoText, { color: navTheme.colors.text }]}>
-          Email: {user.email}
+          User: {user.email}
         </Text>
         <Text style={[styles.infoText, { color: navTheme.colors.text }]}>
           ID: {user.id}
@@ -82,6 +86,7 @@ export default function AuthScreen() {
         <Text style={[styles.infoText, { color: navTheme.colors.text }]}>
           Role: {user.role}
         </Text>
+
         <TouchableOpacity
           style={[styles.button, { backgroundColor: '#dc3545' }]}
           onPress={logout}

@@ -31,7 +31,7 @@ type Props = { children: ReactNode };
 
 // ────────────── ThemeProvider ──────────────
 export const ThemeProvider: React.FC<Props> = ({ children }) => {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
 
   const toggleTheme = () => setIsDark(prev => !prev);
 

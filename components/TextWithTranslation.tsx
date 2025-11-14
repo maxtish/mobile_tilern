@@ -48,13 +48,14 @@ export const TextWithTranslation: React.FC<TextWithTranslationProps> = ({
                   style={{
                     backgroundColor:
                       activeIndex === w.globalIndex
-                        ? '#8cb98cff'
+                        ? '#5e5d5cff'
                         : selectedIndex === w.globalIndex
-                        ? '#FFD700'
+                        ? '#5e5d5cff'
                         : 'transparent',
                     fontSize: 18,
                     lineHeight: 28,
                     color: navTheme.colors.text,
+                    borderRadius: 4,
                   }}
                 >
                   {w.word + ' '}
