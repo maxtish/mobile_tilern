@@ -8,15 +8,16 @@ import {
   Dimensions,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
-import { History, Word, WordTiming } from '../../types/storiesTypes';
-import Sound from 'react-native-sound';
-import RNFS from 'react-native-fs';
+import { History } from '../../types/storiesTypes';
 import { SERVER_URL } from '../../constants/constants';
 import { useUserStore } from '../../state/userStore';
-import { saveUserWord } from '../../api/userWords';
+import { useAudio } from '../../hooks/useAudio';
+import { TextWithTouch } from '../../components/TextWithTouch';
+import { TextWithTranslation } from '../../components/TextWithTranslation';
+import { useAddWord } from '../../hooks/useAddWord';
+import { useWordPress } from '../../hooks/useWordPress';
 
 // Получаем ширину экрана для адаптивных размеров
 const { width } = Dimensions.get('window');
@@ -32,29 +33,17 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const user = useUserStore(state => state.user); // Получаем текущего пользователя из стора
   const { navTheme } = useAppTheme(); // Тема приложения
   const { story } = route.params; // История из параметров
-
+  const { addWord } = useAddWord(story);
   // -------------------- Состояния --------------------
-
-  const [sound, setSound] = useState<Sound | null>(null); // Объект аудио
-  const [isPlaying, setIsPlaying] = useState(false); // Статус воспроизведения
-  const [isLoadingAudio, setIsLoadingAudio] = useState(true); // Статус загрузки аудио
   const [activeIndex, setActiveIndex] = useState<number | null>(null); // Индекс текущего слова для подсветки
-  const [timer, setTimer] = useState<ReturnType<typeof setInterval> | null>(
-    null,
-  ); // Таймер синхронизации
-
-  const [selectedWord, setSelectedWord] = useState<string | null>(null); // Выбранное слово при нажатии
-  const [translation, setTranslation] = useState<string | null>(null); // Перевод выбранного слова
-  const [baseFormText, setBaseFormText] = useState<string | null>(null); // Базовая форма выбранного слова
   const [showSentenceTranslation, setShowSentenceTranslation] = useState(false); // Флаг показа перевода предложений
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null); ///Чтобы подсвечивался только кликнутый экземпляр
-
-  // refs и состояния (вместо прежних)
   const scrollViewRef = React.useRef<ScrollView | null>(null);
   const wordLayouts = React.useRef<{
     [key: number]: { y: number; height: number };
   }>({});
 
+  // -------------------- Подсветка и автоскролл --------------------
   useEffect(() => {
     if (
       activeIndex !== null &&
@@ -71,278 +60,47 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   }, [showSentenceTranslation]);
 
   // -------------------- Работа с аудио --------------------
-  useEffect(() => {
-    // Локальный путь для хранения аудио
-    const localPath = `${RNFS.CachesDirectoryPath}/${story.id}.mp3`;
+  const { sound, isPlaying, isLoading, play, timerRef, setIsPlaying } =
+    useAudio(story.id, story.audioUrl);
 
-    // Функция загрузки аудио
-    const loadSound = (path: string) => {
-      const s = new Sound(path, '', error => {
-        if (error) {
-          console.log('Ошибка загрузки аудио:', error);
-          setIsLoadingAudio(false);
-          return;
-        }
-        setSound(s); // Сохраняем объект Sound
-        setIsLoadingAudio(false); // Загрузка завершена
-      });
-    };
-
-    // Проверяем, есть ли аудио локально
-    RNFS.exists(localPath)
-      .then(exists => {
-        if (exists) loadSound(localPath); // Если есть — загружаем
-        else
-          RNFS.downloadFile({
-            fromUrl: `${SERVER_URL}${story.audioUrl}`, // Скачиваем с сервера
-            toFile: localPath,
-          }).promise.then(() => loadSound(localPath));
-      })
-      .catch(err => {
-        console.log('Ошибка при загрузке файла:', err);
-        setIsLoadingAudio(false);
-      });
-
-    // Очистка при размонтировании
-    return () => {
-      if (sound) sound.release(); // Освобождаем ресурсы
-      stopSync(); // Останавливаем таймер
-    };
-  }, []);
-
-  // -------------------- Воспроизведение аудио --------------------
-  const playAudio = () => {
-    if (!sound || isLoadingAudio) return;
-    if (isPlaying) {
-      sound.pause(); // Пауза
-      stopSync(); // Останавливаем синхронизацию
-      setIsPlaying(false);
-    } else {
-      sound.play(onAudioEnd); // Воспроизведение
-      setIsPlaying(true);
-      startSync(sound); // Запускаем синхронизацию подсветки слов
-    }
-  };
-
-  const onAudioEnd = () => {
-    stopSync(); // Синхронизация завершена
-    setIsPlaying(false);
-    setActiveIndex(null); // Сбрасываем подсветку
-  };
-
-  // -------------------- Синхронизация подсветки слов --------------------
-  const startSync = (soundInstance: Sound) => {
-    const id = setInterval(() => {
-      soundInstance.getCurrentTime(seconds => {
+  // -------------------- Синхронизация слов --------------------
+  const startSync = () => {
+    if (!sound) return;
+    timerRef.current = setInterval(() => {
+      sound.getCurrentTime(seconds => {
         const adjustedTime = seconds + SYNC_OFFSET;
         const index = story.wordTiming.findIndex(
           w => adjustedTime >= w.start && adjustedTime <= w.end,
         );
-        if (index !== activeIndex) {
-          setActiveIndex(index >= 0 ? index : null);
-        }
+        setActiveIndex(index >= 0 ? index : null);
       });
-    });
-    setTimer(id);
+    }, 100) as unknown as number;
   };
 
   const stopSync = () => {
-    if (timer) clearInterval(timer);
-    setTimer(null);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
   };
 
-  ////////////////////////////////
-  // -------------------- Обработка слов --------------------
-  // Нормализация слов для подсветки и поиска
-  const normalizeForHighlight = (str: string) =>
-    str
-      .replace(/[.,!?;:°]/g, '') // Убираем пунктуацию
-      .replace(/^(der|die|das|ein|eine)\s+/i, '') // Убираем артикли
-      .trim()
-      .toLowerCase();
-
-  const handleWordPress = (word: string) => {
-    const cleanedWord = normalizeForHighlight(word);
-
-    // Находим слово в словаре истории
-    const found = story.words.find(w => {
-      if (typeof w.word === 'string') {
-        const normalized = normalizeForHighlight(w.word);
-        return cleanedWord === normalized;
-      }
-      return false;
-    });
-
-    if (found) {
-      setSelectedWord(word);
-      setTranslation(found.translation); // Сохраняем перевод
-      setBaseFormText(found.baseForm);
+  const handlePlayPress = () => {
+    if (!sound || isLoading) return;
+    if (isPlaying) {
+      sound.pause();
+      stopSync();
+      setIsPlaying(false);
     } else {
-      setSelectedWord(word);
-      setTranslation('Перевод не найден');
+      play(() => {
+        stopSync();
+        setActiveIndex(null);
+      });
+      startSync();
     }
   };
 
-  // -------------------- Отрисовка текста с кликабельными словами --------------------
-  const renderTextWithTouch = (wordTiming: WordTiming[]) => {
-    return (
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {wordTiming.map((w, index) => {
-          const isActive = activeIndex === index;
-          const isSelected =
-            selectedWord &&
-            normalizeForHighlight(selectedWord) ===
-              normalizeForHighlight(w.word);
+  // -------------------- Обработка слов --------------------
 
-          return (
-            <View
-              key={index}
-              onLayout={event => {
-                wordLayouts.current[index] = event.nativeEvent.layout;
-              }}
-            >
-              <Text
-                onPress={() => {
-                  setSelectedIndex(index);
-                  handleWordPress(w.word);
-                }}
-                style={{
-                  backgroundColor: isActive
-                    ? '#8cb98cff'
-                    : selectedIndex === index
-                    ? '#FFD700'
-                    : 'transparent',
-                  fontSize: 18,
-                  lineHeight: 28,
-                  color: navTheme.colors.text,
-                }}
-              >
-                {w.word + ' '}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-    );
-  };
-
-  // -------------------- Отображение предложений с переводом --------------------
-  const renderTextWithTranslation = (
-    wordTiming: WordTiming[],
-    ruText: string,
-  ) => {
-    const deSentences = groupWordsIntoSentences(wordTiming);
-    const ruSentencesArr = (ruText.match(/[^.!?]+[.!?]+/g) || [ruText])
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    return (
-      <View>
-        {deSentences.map((sentenceWords, index) => {
-          const ruSentence = ruSentencesArr[index] || '';
-
-          return (
-            <View key={index} style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {sentenceWords.map(w => (
-                  <Text
-                    key={w.globalIndex}
-                    onLayout={event => {
-                      wordLayouts.current[w.globalIndex] =
-                        event.nativeEvent.layout;
-                    }}
-                    onPress={() => {
-                      setSelectedIndex(w.globalIndex);
-                      handleWordPress(w.word);
-                    }}
-                    style={{
-                      backgroundColor:
-                        activeIndex === w.globalIndex
-                          ? '#8cb98cff'
-                          : selectedIndex === w.globalIndex
-                          ? '#FFD700'
-                          : 'transparent',
-                      fontSize: 18,
-                      lineHeight: 28,
-                      color: navTheme.colors.text,
-                    }}
-                  >
-                    {w.word + ' '}
-                  </Text>
-                ))}
-              </View>
-              {ruSentence ? (
-                <Text style={{ marginTop: 4, fontSize: 16, color: 'gray' }}>
-                  {ruSentence}
-                </Text>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
-    );
-  };
-  ///////
-  const groupWordsIntoSentences = (wordTiming: WordTiming[]) => {
-    const sentences: (WordTiming & { globalIndex: number })[][] = [];
-    let currentSentence: (WordTiming & { globalIndex: number })[] = [];
-
-    wordTiming.forEach((w, idx) => {
-      currentSentence.push({ ...w, globalIndex: idx });
-      if (/[.!?]$/.test(w.word)) {
-        sentences.push(currentSentence);
-        currentSentence = [];
-      }
-    });
-
-    if (currentSentence.length) {
-      sentences.push(currentSentence);
-    }
-
-    return sentences;
-  };
-
-  // -------------------- Добавление слова в пользовательский словарь --------------------
-  const handleAddWord = async (wordText: string) => {
-    if (!user) {
-      Alert.alert('Войдите, чтобы сохранять слова');
-      return;
-    }
-
-    const cleanedWordText = wordText.toLowerCase().trim();
-
-    const foundWord: Word | undefined = story.words.find(w => {
-      if (!w.word) return false;
-      if (typeof w.word === 'string') {
-        const normalized = w.word
-          .toLowerCase()
-          .replace(/^(der|die|das|ein|eine)\s+/, '');
-        return cleanedWordText === normalized;
-      }
-      return false;
-    });
-
-    if (!foundWord) {
-      Alert.alert('Слово не найдено в списке слов истории');
-      return;
-    }
-
-    try {
-      const response = await saveUserWord(user.id, story.id, foundWord);
-
-      if (response?.success) {
-        Alert.alert('✅ Слово добавлено!');
-      } else if (response?.message === 'Слово уже сохранено') {
-        Alert.alert('ℹ️ Это слово уже в вашем списке');
-      } else {
-        console.log('Ошибка API:', response);
-        Alert.alert('Ошибка при сохранении слова');
-      }
-    } catch (error) {
-      console.error('Ошибка при вызове saveUserWord:', error);
-      Alert.alert('Ошибка при сохранении слова');
-    }
-  };
+  const { selectedWord, translation, baseFormText, handleWordPress } =
+    useWordPress(story);
 
   // -------------------- Основной рендер --------------------
   return (
@@ -370,7 +128,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             {user && selectedWord && (
               <TouchableOpacity
                 style={styles.addWordButton}
-                onPress={() => handleAddWord(selectedWord)}
+                onPress={() => selectedWord && addWord(selectedWord)}
               >
                 <Text style={{ color: '#fff', fontWeight: 'bold' }}>
                   Добавить слово
@@ -385,12 +143,12 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       <TouchableOpacity
         style={[
           styles.playButton,
-          { backgroundColor: isLoadingAudio ? '#888' : '#1dad00ff' },
+          { backgroundColor: isLoading ? '#888' : '#1dad00ff' },
         ]}
-        onPress={playAudio}
-        disabled={isLoadingAudio}
+        onPress={handlePlayPress}
+        disabled={isLoading}
       >
-        {isLoadingAudio ? (
+        {isLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.playButtonText}>
@@ -425,9 +183,36 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           ref={scrollViewRef}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {showSentenceTranslation
-            ? renderTextWithTranslation(story.wordTiming, story.fullStory.ru)
-            : renderTextWithTouch(story.wordTiming)}
+          {showSentenceTranslation ? (
+            <TextWithTranslation
+              wordTiming={story.wordTiming}
+              ruText={story.fullStory.ru}
+              activeIndex={activeIndex}
+              selectedWord={selectedWord}
+              selectedIndex={selectedIndex}
+              onWordPress={(word, index) => {
+                setSelectedIndex(index);
+                handleWordPress(word);
+              }}
+              onLayout={(index, layout) => {
+                wordLayouts.current[index] = layout;
+              }}
+            />
+          ) : (
+            <TextWithTouch
+              wordTiming={story.wordTiming}
+              activeIndex={activeIndex}
+              selectedWord={selectedWord}
+              selectedIndex={selectedIndex}
+              onWordPress={(word, index) => {
+                setSelectedIndex(index);
+                handleWordPress(word);
+              }}
+              onLayout={(index, layout) => {
+                wordLayouts.current[index] = layout;
+              }}
+            />
+          )}
         </ScrollView>
         {/* Кнопка WordTraining */}
         {user ? (
@@ -457,7 +242,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   );
 }
 
-// -------------------- Стили --------------------
 const styles = StyleSheet.create({
   container: { flex: 1 },
   imageWrapper: { position: 'relative', marginBottom: 16 },
