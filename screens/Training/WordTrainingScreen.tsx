@@ -16,11 +16,11 @@ import { RootStackParamList } from '../../navigation/types';
 import { useTrainingStore } from '../../state/userStore';
 import { TrainingWord } from '../../types/userWord';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-type Props = NativeStackScreenProps<RootStackParamList, 'SavedWords'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'WordTraining'>;
 
 type AddStoryScreenNavigationProp = NavigationProp<
   RootStackParamList,
-  'SavedWords'
+  'WordTraining'
 >;
 // -------------------------
 // Основной компонент TrainingScreen

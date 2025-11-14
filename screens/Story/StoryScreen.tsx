@@ -442,10 +442,12 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       {/* Кнопка просмотра всех сохраненных слов */}
       <TouchableOpacity
         style={styles.viewWordsButton}
-        onPress={() => navigation.navigate('SavedWords', { userId: user?.id })}
+        onPress={() =>
+          navigation.navigate('WordTraining', { userId: user?.id })
+        }
       >
         <Text style={{ color: '#000', fontWeight: 'bold' }}>
-          📚 Посмотреть все слова
+          📚 Тренировка слов
         </Text>
       </TouchableOpacity>
     </View>

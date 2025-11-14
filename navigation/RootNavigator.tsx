@@ -3,11 +3,11 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/Home/HomeScreen';
 import { RootStackParamList } from './types';
-import StoryScreen from '../screens/Home/StoryScreen';
+import StoryScreen from '../screens/Story/StoryScreen';
 import AuthScreen from '../screens/Auth/AuthScreen';
 import AddStoryScreen from '../screens/AddStory/AddStoryScreen';
-import SavedWordsScreen from '../screens/WordsScreen/SavedWordsScreen';
 import AllWordsScreen from '../screens/WordsScreen/AllWordsScreen';
+import TrainingScreen from '../screens/Training/WordTrainingScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -31,8 +31,8 @@ export default function RootNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="SavedWords"
-        component={SavedWordsScreen}
+        name="WordTraining"
+        component={TrainingScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
