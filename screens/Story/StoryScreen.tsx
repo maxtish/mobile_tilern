@@ -429,6 +429,21 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             ? renderTextWithTranslation(story.wordTiming, story.fullStory.ru)
             : renderTextWithTouch(story.wordTiming)}
         </ScrollView>
+        {/* Кнопка WordTraining */}
+        {user ? (
+          <TouchableOpacity
+            style={styles.wordTrainingButton}
+            onPress={() =>
+              navigation.navigate('WordTraining', { userId: user?.id })
+            }
+          >
+            <Text style={{ color: '#000', fontWeight: 'bold' }}>
+              📚 Тренировка слов
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <></>
+        )}
 
         {/* Кнопка возврата */}
         <TouchableOpacity
@@ -438,18 +453,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           <Text style={{ color: '#fff', fontWeight: 'bold' }}>Назад</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Кнопка просмотра всех сохраненных слов */}
-      <TouchableOpacity
-        style={styles.viewWordsButton}
-        onPress={() =>
-          navigation.navigate('WordTraining', { userId: user?.id })
-        }
-      >
-        <Text style={{ color: '#000', fontWeight: 'bold' }}>
-          📚 Тренировка слов
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -512,7 +515,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 5,
   },
   addWordButton: {
     backgroundColor: '#1dad00ff',
@@ -521,11 +524,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 8,
   },
-  viewWordsButton: {
+  wordTrainingButton: {
     backgroundColor: '#FFD700',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 5,
   },
 });
