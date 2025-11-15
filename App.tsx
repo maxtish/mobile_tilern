@@ -1,11 +1,16 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import RootNavigator from './navigation/RootNavigator';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
 import { useAppTheme } from './theme/ThemeProvider';
+import SplashScreen from 'react-native-splash-screen';
 
 export default function App() {
+  useEffect(() => {
+    SplashScreen.hide();
+  }, []);
+
   return (
     <ThemeProvider>
       <SafeAreaProvider>
