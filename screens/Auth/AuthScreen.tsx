@@ -128,6 +128,7 @@ export default function AuthScreen() {
         placeholder="Password"
         value={password}
         onChangeText={setPassword}
+        autoCapitalize="none"
         secureTextEntry
         placeholderTextColor={navTheme.colors.text}
         style={[styles.input, { color: navTheme.colors.text }]}
