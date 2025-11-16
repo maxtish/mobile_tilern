@@ -49,6 +49,8 @@ export const appLightTheme = {
     text: '#1E1E1E',
     border: '#E5E7EB',
     notification: '#FF3B30',
+    textHistory: '#272727ff',
+    wordHistoryBackground: '#a3a0a0ff',
   },
   fonts: {
     regular: { fontFamily: 'Roboto-Regular', fontWeight: '400' as const },
@@ -67,6 +69,8 @@ export const appDarkTheme = {
     text: '#FFFFFF',
     border: '#333333',
     notification: '#FF453A',
+    textHistory: '#c5c5c5ff',
+    wordHistoryBackground: '#5e5d5cff',
   },
   fonts: {
     regular: { fontFamily: 'Roboto-Regular', fontWeight: '400' as const },

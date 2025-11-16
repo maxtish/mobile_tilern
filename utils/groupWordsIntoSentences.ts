@@ -6,7 +6,7 @@ export const groupWordsIntoSentences = (wordTiming: WordTiming[]) => {
 
   wordTiming.forEach((w, idx) => {
     currentSentence.push({ ...w, globalIndex: idx });
-    if (/[.!?]$/.test(w.word)) {
+    if (/[.!?:]$/.test(w.word)) {
       sentences.push(currentSentence);
       currentSentence = [];
     }

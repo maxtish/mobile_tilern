@@ -5,6 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
 import { useAppTheme } from './theme/ThemeProvider';
 import SplashScreen from 'react-native-splash-screen';
+import { RootSiblingParent } from 'react-native-root-siblings';
 
 export default function App() {
   useEffect(() => {
@@ -12,13 +13,15 @@ export default function App() {
   }, []);
 
   return (
-    <ThemeProvider>
-      <SafeAreaProvider>
-        <SafeAreaWrapper>
-          <RootNavigator />
-        </SafeAreaWrapper>
-      </SafeAreaProvider>
-    </ThemeProvider>
+    <RootSiblingParent>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <SafeAreaWrapper>
+            <RootNavigator />
+          </SafeAreaWrapper>
+        </SafeAreaProvider>
+      </ThemeProvider>
+    </RootSiblingParent>
   );
 }
 

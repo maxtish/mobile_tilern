@@ -11,11 +11,11 @@ import {
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { History } from '../../types/storiesTypes';
-import { SERVER_URL } from '../../constants/constants';
+import { colorsArticle, SERVER_URL } from '../../constants/constants';
 import { useUserStore } from '../../state/userStore';
 import { useAudio } from '../../hooks/useAudio';
 import { TextWithTouch } from '../../components/TextWithTouch';
-import { TextWithTranslation } from '../../components/TextWithTranslation';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAddWord } from '../../hooks/useAddWord';
 import { useWordPress } from '../../hooks/useWordPress';
 
@@ -42,7 +42,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const wordLayouts = React.useRef<{
     [key: number]: { y: number; height: number };
   }>({});
-
+  const [activeArticleColors, setActiveArticleColors] = useState(false);
   // -------------------- Подсветка и автоскролл --------------------
   useEffect(() => {
     if (
@@ -117,6 +117,10 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           style={styles.image}
           resizeMode="cover"
         />
+        <View style={styles.levelBadge}>
+          <Text style={styles.levelText}>{story.languageLevel}</Text>
+        </View>
+
         {/* Перевод выбранного слова */}
         {translation && (
           <View style={styles.translationOverlay}>
@@ -138,81 +142,106 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           </View>
         )}
       </View>
-
-      {/* Кнопка воспроизведения аудио */}
-      <TouchableOpacity
-        style={[
-          styles.playButton,
-          { backgroundColor: isLoading ? '#888' : '#1dad00ff' },
-        ]}
-        onPress={handlePlayPress}
-        disabled={isLoading}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+        }}
       >
-        {isLoading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.playButtonText}>
-            {isPlaying ? 'Pause' : 'Play'}
+        {/* Кнопка воспроизведения аудио */}
+        <TouchableOpacity
+          style={[
+            styles.playButton,
+            { backgroundColor: isLoading ? '#888' : '#1dad00ff' },
+          ]}
+          onPress={handlePlayPress}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Ionicons
+              name={isPlaying ? 'pause-outline' : 'play-outline'}
+              size={15}
+              color="#fff"
+            />
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.showButton}
+          onPress={() => setActiveArticleColors(!activeArticleColors)}
+        >
+          <Text
+            style={{
+              color:
+                colorsArticle['der' as keyof typeof colorsArticle] ||
+                navTheme.colors.text,
+            }}
+          >
+            {'der '}
           </Text>
-        )}
-      </TouchableOpacity>
+          <Text
+            style={{
+              color:
+                colorsArticle['die' as keyof typeof colorsArticle] ||
+                navTheme.colors.text,
+            }}
+          >
+            {'die '}
+          </Text>
+          <Text
+            style={{
+              color:
+                colorsArticle['das' as keyof typeof colorsArticle] ||
+                navTheme.colors.text,
+            }}
+          >
+            {'das'}
+          </Text>
+        </TouchableOpacity>
 
-      {/* Заголовок и уровень истории */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: navTheme.colors.text }]}>
-          {story.title.de}
-        </Text>
-        <View style={styles.levelBadge}>
-          <Text style={styles.levelText}>{story.languageLevel}</Text>
-        </View>
+        {/* Кнопка показа/скрытия перевода предложений  */}
+        <TouchableOpacity
+          style={styles.showButton}
+          onPress={() => setShowSentenceTranslation(!showSentenceTranslation)}
+        >
+          <Text style={styles.showButtonText}>
+            {showSentenceTranslation ? 'Скрыть перевод ' : 'Показать перевод '}
+          </Text>
+        </TouchableOpacity>
       </View>
-
-      {/* Кнопка показа/скрытия перевода предложений */}
-      <TouchableOpacity
-        style={styles.showButton}
-        onPress={() => setShowSentenceTranslation(!showSentenceTranslation)}
-      >
-        <Text style={styles.showButtonText}>
-          {showSentenceTranslation ? 'Скрыть перевод ' : 'Показать перевод '}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Основной текст истории */}
       <View style={{ flex: 1 }}>
         <ScrollView
           ref={scrollViewRef}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {showSentenceTranslation ? (
-            <TextWithTranslation
-              wordTiming={story.wordTiming}
-              ruText={story.fullStory.ru}
-              activeIndex={activeIndex}
-              selectedWord={selectedWord}
-              selectedIndex={selectedIndex}
-              onWordPress={(word, index) => {
-                setSelectedIndex(index);
-                handleWordPress(word);
-              }}
-              onLayout={(index, layout) => {
-                wordLayouts.current[index] = layout;
-              }}
-            />
-          ) : (
-            <TextWithTouch
-              wordTiming={story.wordTiming}
-              activeIndex={activeIndex}
-              selectedWord={selectedWord}
-              selectedIndex={selectedIndex}
-              onWordPress={(word, index) => {
-                setSelectedIndex(index);
-                handleWordPress(word);
-              }}
-              onLayout={(index, layout) => {
-                wordLayouts.current[index] = layout;
-              }}
-            />
-          )}
+          {/* Заголовок и уровень истории */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: navTheme.colors.text }]}>
+              {story.title.de}
+            </Text>
+          </View>
+
+          {/* Основной текст истории */}
+
+          <TextWithTouch
+            showSentenceTranslation={showSentenceTranslation}
+            ruText={story.fullStory.ru}
+            activeArticleColors={activeArticleColors}
+            wordsHistory={story.words}
+            wordTiming={story.wordTiming}
+            activeIndex={activeIndex}
+            selectedWord={selectedWord}
+            selectedIndex={selectedIndex}
+            onWordPress={(word, index) => {
+              setSelectedIndex(index);
+              handleWordPress(word);
+            }}
+            onLayout={(index, layout) => {
+              wordLayouts.current[index] = layout;
+            }}
+          />
         </ScrollView>
         {/* Кнопка WordTraining */}
         {user ? (
@@ -257,9 +286,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   translationText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   title: { fontSize: 22, fontWeight: 'bold', flex: 1 },
   levelBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
     backgroundColor: '#FFD700',
     width: 36,
     height: 36,
@@ -278,39 +310,41 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   playButton: {
-    paddingVertical: 10,
+    padding: 8,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 12,
-    width: '50%',
+    alignSelf: 'flex-start', // кнопка по ширине содержимого
   },
   playButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   showButton: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 10,
+    flexDirection: 'row',
+    backgroundColor: '#ffd90033',
+    padding: 4,
     borderRadius: 12,
     marginVertical: 12,
     alignItems: 'center',
+    alignSelf: 'flex-start', // кнопка по ширине содержимого
   },
   showButtonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
   backButton: {
-    marginTop: 24,
-    backgroundColor: '#007bff',
-    padding: 12,
+    marginTop: 14,
+    backgroundColor: '#003d7eff',
+    padding: 4,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 5,
   },
   addWordButton: {
-    backgroundColor: '#1dad00ff',
-    paddingVertical: 8,
+    backgroundColor: '#157002ff',
+    paddingVertical: 4,
     paddingHorizontal: 16,
     borderRadius: 10,
     marginTop: 8,
   },
   wordTrainingButton: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 12,
+    backgroundColor: '#ffd90033',
+    paddingVertical: 4,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 5,

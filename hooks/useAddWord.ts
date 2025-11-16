@@ -2,13 +2,17 @@ import { useUserStore } from '../state/userStore';
 import { Alert } from 'react-native';
 import { saveUserWord } from '../api/userWords';
 import { History, Word } from '../types/storiesTypes';
+import Toast from 'react-native-root-toast';
 
 export const useAddWord = (story: History) => {
   const user = useUserStore(state => state.user);
 
   const addWord = async (wordText: string) => {
     if (!user) {
-      Alert.alert('Войдите, чтобы сохранять слова');
+      Toast.show('Войдите, чтобы сохранять слова', {
+        duration: Toast.durations.SHORT,
+        position: Toast.positions.TOP,
+      });
       return;
     }
 
@@ -26,7 +30,10 @@ export const useAddWord = (story: History) => {
     });
 
     if (!foundWord) {
-      Alert.alert('Слово не найдено в списке слов истории');
+      Toast.show('Слово не найдено в списке слов истории', {
+        duration: Toast.durations.SHORT,
+        position: Toast.positions.TOP,
+      });
       return;
     }
 
@@ -34,16 +41,25 @@ export const useAddWord = (story: History) => {
       const response = await saveUserWord(user.id, story.id, foundWord);
 
       if (response?.success) {
-        Alert.alert('✅ Слово добавлено!');
+        Toast.show('✅ Слово добавлено!', {
+          duration: Toast.durations.SHORT,
+          position: Toast.positions.TOP,
+        });
       } else if (response?.message === 'Слово уже сохранено') {
-        Alert.alert('ℹ️ Это слово уже в вашем списке');
+        Toast.show('ℹ️ Это слово уже в вашем списке', {
+          duration: Toast.durations.SHORT,
+        });
       } else {
         console.log('Ошибка API:', response);
-        Alert.alert('Ошибка при сохранении слова');
+        Toast.show('Ошибка при сохранении слова', {
+          duration: Toast.durations.SHORT,
+        });
       }
     } catch (error) {
       console.error('Ошибка при вызове saveUserWord:', error);
-      Alert.alert('Ошибка при сохранении слова');
+      Toast.show('Ошибка при сохранении слова', {
+        duration: Toast.durations.SHORT,
+      });
     }
   };
 

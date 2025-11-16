@@ -16,6 +16,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { useTrainingStore } from '../../state/userStore';
 import { TrainingWord } from '../../types/userWord';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { colorsArticle } from '../../constants/constants';
 type Props = NativeStackScreenProps<RootStackParamList, 'WordTraining'>;
 
 type AddStoryScreenNavigationProp = NavigationProp<
@@ -47,11 +48,6 @@ export default function TrainingScreen({ route }: Props) {
   const passedCount = words.filter(w => w.passedCorrectly).length;
 
   // Цвета для артиклей
-  const colors: Record<string, string> = {
-    der: '#007bff',
-    die: '#ff0000',
-    das: '#00cc44',
-  };
 
   // -------------------------
   // Загрузка слов с сервера
@@ -179,7 +175,13 @@ export default function TrainingScreen({ route }: Props) {
       <View style={styles.card}>
         <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
           <Text style={{ fontSize: 24, fontWeight: 'bold' }}>
-            <Text style={{ color: colors[article] || navTheme.colors.text }}>
+            <Text
+              style={{
+                color:
+                  colorsArticle[article as keyof typeof colorsArticle] ||
+                  navTheme.colors.text,
+              }}
+            >
               {article}{' '}
             </Text>
             <Text style={{ color: navTheme.colors.text }}>{mainWord}</Text>
@@ -253,7 +255,9 @@ export default function TrainingScreen({ route }: Props) {
               style={[
                 styles.translationText,
                 {
-                  color: colors[article] || navTheme.colors.text,
+                  color:
+                    colorsArticle[article as keyof typeof colorsArticle] ||
+                    navTheme.colors.text,
                   opacity: showAnswer ? 1 : 0.3,
                   fontSize: 20,
                 },
