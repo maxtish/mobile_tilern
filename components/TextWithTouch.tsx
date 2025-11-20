@@ -84,58 +84,57 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
 
         return (
           <React.Fragment key={index}>
-            <Text
-              style={[
-                styles.textWordHistory,
-                {
-                  fontFamily: appTheme.fonts.medium.fontFamily,
-                  color: appTheme.colors.textHistory,
-                },
-              ]}
+            <View
+              onLayout={event => {
+                onLayout?.(index, event.nativeEvent.layout);
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
             >
+              {/* PURE WORD */}
               <Text
-                onLayout={event => {
-                  onLayout?.(index, event.nativeEvent.layout);
-                }}
                 onPress={() => onWordPress(w.word, index)}
                 style={[
-                  styles.textWordHistory,
+                  styles.pureWord,
                   {
-                    backgroundColor: isActive
-                      ? appTheme.colors.wordHistoryBackground
-                      : selectedIndex === index
-                      ? appTheme.colors.wordHistoryBackground
-                      : 'transparent',
-                    fontFamily: appTheme.fonts.medium.fontFamily,
-                    color: activeArticleColors
-                      ? appTheme.colors.textHistory
-                      : (article &&
-                          colorsArticle[
-                            article as keyof typeof colorsArticle
-                          ]) ||
-                        appTheme.colors.textHistory
-                      ? colorsArticle[article as keyof typeof colorsArticle] ||
-                        appTheme.colors.textHistory
-                      : appTheme.colors.textHistory,
+                    backgroundColor:
+                      isActive || selectedIndex === index
+                        ? appTheme.colors.wordHistoryBackground
+                        : 'transparent',
+
+                    color:
+                      isActive || selectedIndex === index
+                        ? appTheme.colors.textHistory
+                        : activeArticleColors
+                        ? appTheme.colors.textHistory
+                        : (article &&
+                            colorsArticle[
+                              article as keyof typeof colorsArticle
+                            ]) ||
+                          appTheme.colors.textHistory,
                   },
                 ]}
               >
                 {pure}
               </Text>
 
-              {extra + ' '}
-            </Text>
-            {endsSentence && ruSentence && showSentenceTranslation ? (
+              {/* EXTRA SYMBOLS (.,!?, space...) */}
               <Text
-                style={{
-                  fontSize: 16,
-                  color: 'gray',
-                  marginTop: 4,
-                  width: '100%',
-                }}
+                style={[
+                  styles.extraText,
+                  { color: appTheme.colors.textHistory },
+                ]}
               >
-                {ruSentence}
+                {extra + ''}
               </Text>
+            </View>
+
+            {/* RU TRANSLATION */}
+            {endsSentence && ruSentence && showSentenceTranslation ? (
+              <Text style={styles.translation}>{ruSentence}</Text>
             ) : null}
           </React.Fragment>
         );
@@ -145,10 +144,29 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
 };
 
 const styles = StyleSheet.create({
-  textWordHistory: {
+  pureWord: {
     fontSize: 18,
     lineHeight: 28,
     letterSpacing: 1.1,
-    borderRadius: 4,
+    borderRadius: 6,
+    overflow: 'hidden',
+    paddingLeft: 7,
+    paddingVertical: 1,
+  },
+  extraText: {
+    fontSize: 18,
+    lineHeight: 28,
+    letterSpacing: 1.1,
+  },
+  translation: {
+    fontSize: 16,
+    color: '#646464ff',
+    backgroundColor: 'rgba(54, 54, 54, 0.6)',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 4,
+    width: '100%',
+    lineHeight: 22,
   },
 });

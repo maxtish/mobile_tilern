@@ -184,7 +184,15 @@ export default function TrainingScreen({ route }: Props) {
             >
               {article}{' '}
             </Text>
-            <Text style={{ color: navTheme.colors.text }}>{mainWord}</Text>
+            <Text
+              style={{
+                color:
+                  colorsArticle[article as keyof typeof colorsArticle] ||
+                  navTheme.colors.text,
+              }}
+            >
+              {mainWord}
+            </Text>
           </Text>
         </Text>
         {showTranslation && (

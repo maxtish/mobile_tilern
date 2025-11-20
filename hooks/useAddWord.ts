@@ -48,17 +48,20 @@ export const useAddWord = (story: History) => {
       } else if (response?.message === 'Слово уже сохранено') {
         Toast.show('ℹ️ Это слово уже в вашем списке', {
           duration: Toast.durations.SHORT,
+          position: Toast.positions.TOP,
         });
       } else {
         console.log('Ошибка API:', response);
         Toast.show('Ошибка при сохранении слова', {
           duration: Toast.durations.SHORT,
+          position: Toast.positions.TOP,
         });
       }
     } catch (error) {
       console.error('Ошибка при вызове saveUserWord:', error);
       Toast.show('Ошибка при сохранении слова', {
         duration: Toast.durations.SHORT,
+        position: Toast.positions.TOP,
       });
     }
   };

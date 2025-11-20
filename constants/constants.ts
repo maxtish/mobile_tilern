@@ -2,7 +2,7 @@
 export const SERVER_URL = 'https://unfestive-exigible-nan.ngrok-free.dev';
 
 export const colorsArticle: Record<'der' | 'die' | 'das', string> = {
-  der: '#007bff',
-  die: '#ff0000',
-  das: '#00cc44',
+  der: '#0154A1',
+  die: '#a70202ff',
+  das: '#028337ff',
 };

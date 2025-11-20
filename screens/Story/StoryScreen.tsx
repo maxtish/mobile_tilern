@@ -104,12 +104,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
   // -------------------- Основной рендер --------------------
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: navTheme.colors.background },
-      ]}
-    >
+    <View style={[styles.container]}>
       {/* Изображение истории */}
       <View style={styles.imageWrapper}>
         <Image
@@ -117,6 +112,12 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           style={styles.image}
           resizeMode="cover"
         />
+        <TouchableOpacity
+          style={styles.backIcon}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={26} color="#bbbbbb" />
+        </TouchableOpacity>
         <View style={styles.levelBadge}>
           <Text style={styles.levelText}>{story.languageLevel}</Text>
         </View>
@@ -134,7 +135,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
                 style={styles.addWordButton}
                 onPress={() => selectedWord && addWord(selectedWord)}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                <Text style={{ color: '#bbbbbb', fontWeight: 'bold' }}>
                   Добавить слово
                 </Text>
               </TouchableOpacity>
@@ -145,60 +146,62 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       <View
         style={{
           flexDirection: 'row',
-          flexWrap: 'wrap',
           justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          marginHorizontal: 16,
+          marginVertical: 8,
         }}
       >
         {/* Кнопка воспроизведения аудио */}
         <TouchableOpacity
           style={[
             styles.playButton,
-            { backgroundColor: isLoading ? '#888' : '#1dad00ff' },
+            { backgroundColor: isLoading ? '#888' : '#3b3b3b' },
           ]}
           onPress={handlePlayPress}
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color="#bbbbbb" />
           ) : (
             <Ionicons
               name={isPlaying ? 'pause-outline' : 'play-outline'}
-              size={15}
-              color="#fff"
+              size={22}
+              color="#bbbbbb"
             />
           )}
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.showButton}
+          style={styles.showButtonArticle}
           onPress={() => setActiveArticleColors(!activeArticleColors)}
         >
-          <Text
-            style={{
-              color:
-                colorsArticle['der' as keyof typeof colorsArticle] ||
-                navTheme.colors.text,
-            }}
-          >
-            {'der '}
-          </Text>
-          <Text
-            style={{
-              color:
-                colorsArticle['die' as keyof typeof colorsArticle] ||
-                navTheme.colors.text,
-            }}
-          >
-            {'die '}
-          </Text>
-          <Text
-            style={{
-              color:
-                colorsArticle['das' as keyof typeof colorsArticle] ||
-                navTheme.colors.text,
-            }}
-          >
-            {'das'}
-          </Text>
+          <View style={styles.articlesRow}>
+            <Text
+              style={[
+                styles.articleText,
+                { color: colorsArticle.der || navTheme.colors.text },
+              ]}
+            >
+              der{' '}
+            </Text>
+            <Text
+              style={[
+                styles.articleText,
+                { color: colorsArticle.die || navTheme.colors.text },
+              ]}
+            >
+              die{' '}
+            </Text>
+            <Text
+              style={[
+                styles.articleText,
+                { color: colorsArticle.das || navTheme.colors.text },
+              ]}
+            >
+              das
+            </Text>
+          </View>
         </TouchableOpacity>
 
         {/* Кнопка показа/скрытия перевода предложений  */}
@@ -207,7 +210,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           onPress={() => setShowSentenceTranslation(!showSentenceTranslation)}
         >
           <Text style={styles.showButtonText}>
-            {showSentenceTranslation ? 'Скрыть перевод ' : 'Показать перевод '}
+            {showSentenceTranslation ? 'Скрыть перевод' : 'Показать перевод'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -246,26 +249,16 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         {/* Кнопка WordTraining */}
         {user ? (
           <TouchableOpacity
-            style={styles.wordTrainingButton}
+            style={styles.showButton}
             onPress={() =>
               navigation.navigate('WordTraining', { userId: user?.id })
             }
           >
-            <Text style={{ color: '#000', fontWeight: 'bold' }}>
-              📚 Тренировка слов
-            </Text>
+            <Text style={styles.showButtonText}>📚 Тренировка слов</Text>
           </TouchableOpacity>
         ) : (
           <></>
         )}
-
-        {/* Кнопка возврата */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Назад</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -273,68 +266,60 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  imageWrapper: { position: 'relative', marginBottom: 16 },
-  image: { width: width - 32, height: 200, borderRadius: 16 },
+  imageWrapper: {},
+  image: {
+    width: '100%',
+    aspectRatio: 16 / 7,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+  },
   translationOverlay: {
     position: 'absolute',
     bottom: 12,
     left: 12,
     right: 12,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 12,
     padding: 8,
     alignItems: 'center',
   },
-  translationText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  title: { fontSize: 22, fontWeight: 'bold', flex: 1 },
-  levelBadge: {
+  backIcon: {
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#FFD700',
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)', // полупрозрачный, мягкий
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
   },
+  levelBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#ffd900d8',
+    width: 36,
+    height: 36,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  translationText: { color: '#bbbbbb', fontSize: 16, fontWeight: '600' },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  title: { fontSize: 22, fontWeight: 'bold', flex: 1 },
+
   levelText: { color: '#000', fontWeight: 'bold' },
-  fullStory: {
-    margin: 0,
-    padding: 0,
-    fontSize: 18,
-    lineHeight: 24,
-    flexWrap: 'wrap',
-    fontWeight: '500',
-  },
+
   playButton: {
     padding: 8,
-    borderRadius: 12,
+    borderRadius: 30,
     alignItems: 'center',
-    marginTop: 12,
-    alignSelf: 'flex-start', // кнопка по ширине содержимого
+    justifyContent: 'center',
   },
-  playButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  showButton: {
-    flexDirection: 'row',
-    backgroundColor: '#ffd90033',
-    padding: 4,
-    borderRadius: 12,
-    marginVertical: 12,
-    alignItems: 'center',
-    alignSelf: 'flex-start', // кнопка по ширине содержимого
-  },
-  showButtonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
-  backButton: {
-    marginTop: 14,
-    backgroundColor: '#003d7eff',
-    padding: 4,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 5,
-  },
+
   addWordButton: {
     backgroundColor: '#157002ff',
     paddingVertical: 4,
@@ -342,11 +327,41 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 8,
   },
-  wordTrainingButton: {
-    backgroundColor: '#ffd90033',
-    paddingVertical: 4,
-    borderRadius: 12,
+
+  showButtonArticle: {
+    marginTop: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    backgroundColor: '#3b3b3b', // тёмный бархатный
+  },
+
+  articlesRow: {
+    flexDirection: 'row',
+  },
+
+  articleText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+
+  showButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    backgroundColor: '#3b3b3b',
+    alignSelf: 'center',
+    marginTop: 16,
+  },
+
+  showButtonText: {
+    color: '#bbbbbb',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

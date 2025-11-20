@@ -21,12 +21,12 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
 export default function AuthScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { navTheme } = useAppTheme();
+
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-
+  const { navTheme, appTheme, toggleTheme } = useAppTheme();
   const user = useUserStore(state => state.user);
   const setUser = useUserStore(state => state.setUser);
   const logout = useUserStore(state => state.logout);
@@ -67,6 +67,50 @@ export default function AuthScreen() {
   if (user) {
     return (
       <View style={styles.container}>
+        {/* Верхняя панель */}
+        <View style={styles.header}>
+          {user?.role === 'ADMIN' || user?.role === 'USER' ? (
+            <>
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: '#28a745' }]}
+                onPress={() => navigation.navigate('AddStory')}
+              >
+                <Text style={styles.buttonText}>Добавить историю</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: navTheme.colors.text,
+                  fontFamily: navTheme.fonts.heavy.fontFamily,
+                },
+              ]}
+            >
+              TiLern – Lies, lerne, sprich.
+            </Text>
+          )}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              style={[styles.avatar, { backgroundColor: navTheme.colors.card }]}
+            >
+              <Text style={{ color: navTheme.colors.text }}>A</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={toggleTheme}
+              style={[
+                styles.themeButton,
+                { backgroundColor: navTheme.colors.primary },
+              ]}
+            >
+              <Text style={{ color: navTheme.colors.text }}>🌓</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={[styles.button, { backgroundColor: '#28a745' }]}
           onPress={() => navigation.navigate('Home')}
@@ -148,7 +192,20 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20 },
+  container: { flex: 1, justifyContent: 'space-between', padding: 20 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -172,4 +229,11 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   switchText: { color: '#007bff', textAlign: 'center', marginTop: 8 },
   infoText: { fontSize: 18, marginBottom: 8, textAlign: 'center' },
+  themeButton: {
+    marginLeft: 12,
+    padding: 10,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

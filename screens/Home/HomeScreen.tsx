@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 
 import { useAppTheme } from '../../theme/ThemeProvider';
@@ -73,8 +74,7 @@ export default function HomeScreen() {
     <View
       style={{
         flex: 1,
-        backgroundColor: navTheme.colors.background,
-        marginTop: 5,
+        marginTop: 15,
       }}
     >
       {/* Верхняя панель */}
@@ -131,7 +131,7 @@ export default function HomeScreen() {
           {histories
             .filter(story => story)
             .map(story => (
-              <TouchableOpacity
+              <Pressable
                 key={story.id}
                 style={[styles.storyCard]}
                 onPress={() => navigation.navigate('StoryScreen', { story })}
@@ -183,7 +183,7 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </ImageBackground>
-              </TouchableOpacity>
+              </Pressable>
             ))}
         </View>
         <TouchableOpacity
@@ -244,16 +244,16 @@ const styles = StyleSheet.create({
   storyContainerText: {
     margin: 20,
     padding: 10,
-    backgroundColor: '#383434ff',
+    backgroundColor: '#383434d2',
     borderRadius: 15,
   },
   storyTextTitle: {
-    color: '#fff',
+    color: '#bbbbbb',
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 10,
   },
-  storyTextDescription: { color: '#fff', fontSize: 14, fontWeight: '200' },
+  storyTextDescription: { color: '#bbbbbb', fontSize: 14, fontWeight: '300' },
 
   levelBadge: {
     position: 'absolute',
