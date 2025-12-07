@@ -17,22 +17,21 @@ import { useTrainingStore } from '../../state/userStore';
 import { TrainingWord } from '../../types/userWord';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { colorsArticle } from '../../constants/constants';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'WordTraining'>;
 
 type AddStoryScreenNavigationProp = NavigationProp<
   RootStackParamList,
   'WordTraining'
 >;
-// -------------------------
-// Основной компонент TrainingScreen
-// -------------------------
+
 export default function TrainingScreen({ route }: Props) {
   const { navTheme } = useAppTheme();
   const { userId } = route.params;
 
-  // Zustand store
   const { words, setWords, markCorrect, markFailed } = useTrainingStore();
   const navigation = useNavigation<AddStoryScreenNavigationProp>();
+
   const [loading, setLoading] = useState(true);
   const [currentWord, setCurrentWord] = useState<TrainingWord | null>(null);
   const [round, setRound] = useState(1); // 1 или 2
@@ -40,15 +39,11 @@ export default function TrainingScreen({ route }: Props) {
   const [userInput, setUserInput] = useState('');
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [wordsCount, setWordsCount] = useState(0);
-  // Состояние "наоборот" для кнопки
   const [reversed, setReversed] = useState(false);
-  /////прогресс
+  const [round1WordsLeft, setRound1WordsLeft] = useState<TrainingWord[]>([]);
 
   const totalWords = words.length;
   const passedCount = words.filter(w => w.passedCorrectly).length;
-
-  // Цвета для артиклей
 
   // -------------------------
   // Загрузка слов с сервера
@@ -66,14 +61,18 @@ export default function TrainingScreen({ route }: Props) {
         }),
       );
       setWords(trainingWords);
-      setLoading(false);
 
-      // сразу выбираем первое слово
       if (trainingWords.length > 0) {
-        setCurrentWord(trainingWords[0]); // или вызови nextWord()
+        setCurrentWord(trainingWords[0]);
+        // Убираем первое слово из оставшихся для раунда 1
+        setRound1WordsLeft(trainingWords.slice(1));
+      } else {
+        setRound1WordsLeft([]);
       }
+
+      setLoading(false);
     })();
-  }, [userId]);
+  }, [userId, reversed]);
 
   // -------------------------
   // Автоматический переход на следующее слово после правильного ответа
@@ -81,9 +80,7 @@ export default function TrainingScreen({ route }: Props) {
   useEffect(() => {
     let timer: number;
     if (isCorrect) {
-      timer = setTimeout(() => {
-        nextWord();
-      }, 1000);
+      timer = setTimeout(() => nextWord(), 1000);
     }
     return () => {
       if (timer) clearTimeout(timer);
@@ -91,9 +88,7 @@ export default function TrainingScreen({ route }: Props) {
   }, [isCorrect]);
 
   // -------------------------
-  // Выбор следующего слова по алгоритму
-  // 1. Берем непрошедшие слова
-  // 2. Если все слова пройдены, повторяем ошибки
+  // Выбор следующего слова
   // -------------------------
   const nextWord = () => {
     setShowTranslation(false);
@@ -103,42 +98,54 @@ export default function TrainingScreen({ route }: Props) {
 
     if (words.length === 0) return;
 
-    // Сначала выбираем слова, которые ещё не пройдены
+    // ---------- РАУНД 1 ----------
+    if (round === 1) {
+      if (round1WordsLeft.length === 0) {
+        // Все слова раунда 1 пройдены — начинаем раунд 2
+        setRound(2);
+        // Сбрасываем состояния слов для раунда 2
+        setWords(
+          words.map(w => ({ ...w, passedCorrectly: false, failed: false })),
+        );
+        // Инициализируем первое слово раунда 2
+        const unpassed = words.filter(w => !w.passedCorrectly);
+        if (unpassed.length > 0) setCurrentWord(unpassed[0]);
+        return;
+      }
+
+      // Берем случайное слово из оставшихся
+      const index = Math.floor(Math.random() * round1WordsLeft.length);
+      const next = round1WordsLeft[index];
+
+      const newLeft = [...round1WordsLeft];
+      newLeft.splice(index, 1);
+      setRound1WordsLeft(newLeft);
+
+      setCurrentWord(next);
+      return;
+    }
+
+    // ---------- РАУНД 2 ----------
     const unpassed = words.filter(w => !w.passedCorrectly);
     let next: TrainingWord | null = null;
 
     if (unpassed.length > 0) {
-      // выбираем случайное из непрошедших
       next = unpassed[Math.floor(Math.random() * unpassed.length)];
     } else {
-      // если все пройдены, повторяем слова с ошибками
       const failedWords = words.filter(w => w.failed);
       if (failedWords.length > 0) {
         next = failedWords[Math.floor(Math.random() * failedWords.length)];
       } else {
-        // все слова пройдены верно — можно закончить тренировку
         setCurrentWord(null);
         return;
       }
     }
 
     setCurrentWord(next);
-
-    // каждые все слова меняем раунд
-    setWordsCount(prev => {
-      const newCount = prev + 1;
-
-      // Меняем раунд, когда пройдены все слова
-      if (newCount % totalWords === 0) {
-        setRound(r => (r === 1 ? 2 : 1));
-      }
-
-      return newCount;
-    });
   };
 
   // -------------------------
-  // Проверка ответа в раунде 2
+  // Проверка ответа (раунд 2)
   // -------------------------
   const checkAnswer = () => {
     if (!currentWord) return;
@@ -150,12 +157,13 @@ export default function TrainingScreen({ route }: Props) {
     setIsCorrect(correct);
     setShowAnswer(true);
 
-    // Обновляем состояние слова
     if (correct) markCorrect(currentWord.id);
     else markFailed(currentWord.id);
   };
 
-  ///////////////////////////////////////////////////////////////////////
+  // -------------------------
+  // Компоненты для отображения слов
+  // -------------------------
   const CurrentWordComponent: React.FC = () => {
     if (!currentWord) return null;
 
@@ -165,7 +173,6 @@ export default function TrainingScreen({ route }: Props) {
     let article = '';
     let mainWord = baseForm;
 
-    // Разделяем только если есть пробел
     if (baseForm.includes(' ')) {
       const parts = baseForm.split(' ');
       article = parts[0];
@@ -200,7 +207,6 @@ export default function TrainingScreen({ route }: Props) {
 
   const TranslationWordComponent: React.FC = () => {
     if (!currentWord) return null;
-
     return (
       <Text style={[styles.translationText, { color: navTheme.colors.text }]}>
         {currentWord.word.translation}
@@ -208,10 +214,19 @@ export default function TrainingScreen({ route }: Props) {
     );
   };
 
-  // Рендер раунда 1: показать слово с артиклем и кнопку
-  // Кнопка меняет текст: "Показать перевод" → "Дальше"
+  // -------------------------
+  // Рендер раундов
   // -------------------------
   const renderRound1 = () => {
+    const handleNextRound1 = () => {
+      if (!currentWord) return;
+
+      // отмечаем слово как пройденное
+      markCorrect(currentWord.id);
+
+      nextWord();
+    };
+
     return (
       <View style={styles.card}>
         {reversed ? (
@@ -228,11 +243,8 @@ export default function TrainingScreen({ route }: Props) {
         <TouchableOpacity
           style={styles.button}
           onPress={() => {
-            if (showTranslation) {
-              nextWord();
-            } else {
-              setShowTranslation(true);
-            }
+            if (showTranslation) handleNextRound1();
+            else setShowTranslation(true);
           }}
         >
           <Text style={styles.buttonText}>
@@ -244,7 +256,10 @@ export default function TrainingScreen({ route }: Props) {
             styles.button,
             { flex: 1, marginLeft: 8, backgroundColor: '#6c757d' },
           ]}
-          onPress={() => setReversed(prev => !prev)}
+          onPress={() => {
+            setReversed(prev => !prev);
+            setShowTranslation(false);
+          }}
         >
           <Text style={styles.buttonText}>Наоборот</Text>
         </TouchableOpacity>
@@ -252,13 +267,9 @@ export default function TrainingScreen({ route }: Props) {
     );
   };
 
-  // -------------------------
-  // Рендер раунда 2: показать перевод и поле для ввода
-  // После правильного ответа таймер автоматически переходит к следующему слову
-  // -------------------------
   const renderRound2 = () => {
     if (!currentWord) return null;
-    const [article, ...rest] = currentWord.word.word.split(' ');
+    const [article, ...rest] = currentWord.word.baseForm.split(' ');
     const mainWord = rest.join(' ');
 
     return (
@@ -271,24 +282,21 @@ export default function TrainingScreen({ route }: Props) {
             styles.input,
             {
               borderColor: navTheme.colors.text,
-              color: navTheme.colors.text,
               backgroundColor:
                 isCorrect === false ? '#661a1aff' : navTheme.colors.background,
+              color: navTheme.colors.text,
             },
-            { color: navTheme.colors.text },
           ]}
           value={userInput}
           onChangeText={setUserInput}
           placeholder="Введите немецкое слово "
           placeholderTextColor={navTheme.colors.text}
         />
-
         {!isCorrect && (
           <TouchableOpacity style={styles.button} onPress={checkAnswer}>
             <Text style={styles.buttonText}>Проверить</Text>
           </TouchableOpacity>
         )}
-
         {showAnswer && (
           <TouchableOpacity onPress={() => setShowAnswer(false)}>
             <Text
@@ -298,7 +306,7 @@ export default function TrainingScreen({ route }: Props) {
                   color:
                     colorsArticle[article as keyof typeof colorsArticle] ||
                     navTheme.colors.text,
-                  opacity: showAnswer ? 1 : 0.3,
+                  opacity: 1,
                   fontSize: 20,
                 },
               ]}
@@ -312,7 +320,7 @@ export default function TrainingScreen({ route }: Props) {
   };
 
   // -------------------------
-  // Loader
+  // Loader и окончание тренировки
   // -------------------------
   if (loading) {
     return (
@@ -332,7 +340,6 @@ export default function TrainingScreen({ route }: Props) {
         <Text style={{ color: navTheme.colors.text, fontSize: 18 }}>
           Тренировка завершена! Все слова пройдены.
         </Text>
-
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -344,7 +351,7 @@ export default function TrainingScreen({ route }: Props) {
   }
 
   // -------------------------
-  // Рендер основной UI
+  // Основной UI
   // -------------------------
   return (
     <View
@@ -358,7 +365,6 @@ export default function TrainingScreen({ route }: Props) {
           Тренировка слов
         </Text>
 
-        {/* 📊 Прогресс */}
         <View style={styles.progressContainer}>
           <Text style={[styles.progressText, { color: navTheme.colors.text }]}>
             Пройдено: {passedCount} из {totalWords}
@@ -375,6 +381,7 @@ export default function TrainingScreen({ route }: Props) {
 
         {round === 1 ? renderRound1() : renderRound2()}
       </ScrollView>
+
       <TouchableOpacity
         style={[styles.backButton, { backgroundColor: '#28a745' }]}
         onPress={() => navigation.navigate('AllWords')}
@@ -430,20 +437,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   backButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  errorText: {
-    color: 'red',
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  progressContainer: {
-    marginBottom: 16,
-  },
-  progressText: {
-    fontSize: 16,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
+  progressContainer: { marginBottom: 16 },
+  progressText: { fontSize: 16, marginBottom: 6, textAlign: 'center' },
   progressBarBackground: {
     height: 10,
     backgroundColor: '#ccc',
