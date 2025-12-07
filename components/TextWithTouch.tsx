@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground } from 'react-native';
 import { Word, TokenTiming } from '../types/storiesTypes';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { normalizeWord } from '../utils/normalizeWord';
@@ -65,7 +65,11 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
   onWordPress,
   onLayout,
 }) => {
-  const { appTheme } = useAppTheme();
+  const { appTheme, isDark } = useAppTheme();
+
+  const backgroundTexture = isDark
+    ? require('../assets/texture/black-plasterboard-texture.jpg')
+    : require('../assets/texture/sepia-plasterboard-texture.jpg');
 
   //////////////////
 
@@ -75,7 +79,14 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
   let sentences = 0;
   ////////
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+    <ImageBackground
+      source={backgroundTexture}
+      imageStyle={{ resizeMode: 'repeat', opacity: 0.7, borderRadius: 15 }}
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+      }}
+    >
       {tokenTiming.map((w, index) => {
         const currentWord: Word = wordsHistory[index];
         if (!currentWord) return null;
@@ -179,7 +190,7 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
           </React.Fragment>
         );
       })}
-    </View>
+    </ImageBackground>
   );
 };
 
@@ -201,7 +212,7 @@ const styles = StyleSheet.create({
   translation: {
     fontSize: 16,
     color: '#646464ff',
-    backgroundColor: 'rgba(54, 54, 54, 0.6)',
+    //backgroundColor: 'rgba(54, 54, 54, 0.6)',
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 6,
