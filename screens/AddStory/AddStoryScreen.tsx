@@ -53,12 +53,20 @@ export default function AddStoryScreen() {
       <TextInput
         placeholder="Введите текст истории..."
         value={title}
-        onChangeText={setTitle}
+        onChangeText={text => {
+          if (text.length <= 700) {
+            setTitle(text);
+          } else {
+            setTitle(text.slice(0, 700)); // обрезаем лишние символы
+          }
+        }}
         multiline
         textAlignVertical="top"
         style={styles.input}
       />
-
+      <Text style={{ textAlign: 'right', marginBottom: 8 }}>
+        {title.length}/700
+      </Text>
       <TouchableOpacity
         style={[styles.addButton, isDisabled && { backgroundColor: '#a5d6a7' }]}
         onPress={handleAdd}
