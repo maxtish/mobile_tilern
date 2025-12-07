@@ -92,14 +92,8 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
         if (!currentWord) return null;
         const { pure, extraBefore, extraAfter } = splitWord(w.word);
 
-        const endsSentence =
-          extraAfter === '.' ||
-          extraAfter === '!' ||
-          extraAfter === '?' ||
-          extraAfter === '.“' ||
-          extraAfter === '!“' ||
-          extraAfter === '?“';
-        const extraSp = extraAfter + ' ';
+        const endsSentence = /[.!?]/.test(extraAfter.trim());
+
         // Фраза для отображения после конца предложения
         const ruSentence = endsSentence ? ruSentencesArr[sentences] : null;
 
