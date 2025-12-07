@@ -41,7 +41,8 @@ export default function TrainingScreen({ route }: Props) {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [wordsCount, setWordsCount] = useState(0);
-
+  // Состояние "наоборот" для кнопки
+  const [reversed, setReversed] = useState(false);
   /////прогресс
 
   const totalWords = words.length;
@@ -82,7 +83,7 @@ export default function TrainingScreen({ route }: Props) {
     if (isCorrect) {
       timer = setTimeout(() => {
         nextWord();
-      }, 3000);
+      }, 1000);
     }
     return () => {
       if (timer) clearTimeout(timer);
@@ -123,12 +124,15 @@ export default function TrainingScreen({ route }: Props) {
 
     setCurrentWord(next);
 
-    // каждые 3 слова меняем раунд
+    // каждые все слова меняем раунд
     setWordsCount(prev => {
       const newCount = prev + 1;
-      if (newCount % 3 === 0) {
+
+      // Меняем раунд, когда пройдены все слова
+      if (newCount % totalWords === 0) {
         setRound(r => (r === 1 ? 2 : 1));
       }
+
       return newCount;
     });
   };
@@ -151,11 +155,8 @@ export default function TrainingScreen({ route }: Props) {
     else markFailed(currentWord.id);
   };
 
-  // -------------------------
-  // Рендер раунда 1: показать слово с артиклем и кнопку
-  // Кнопка меняет текст: "Показать перевод" → "Дальше"
-  // -------------------------
-  const renderRound1 = () => {
+  ///////////////////////////////////////////////////////////////////////
+  const CurrentWordComponent: React.FC = () => {
     if (!currentWord) return null;
 
     const baseForm = currentWord.word.baseForm
@@ -172,35 +173,57 @@ export default function TrainingScreen({ route }: Props) {
     }
 
     return (
-      <View style={styles.card}>
-        <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>
-            <Text
-              style={{
-                color:
-                  colorsArticle[article as keyof typeof colorsArticle] ||
-                  navTheme.colors.text,
-              }}
-            >
-              {article}{' '}
-            </Text>
-            <Text
-              style={{
-                color:
-                  colorsArticle[article as keyof typeof colorsArticle] ||
-                  navTheme.colors.text,
-              }}
-            >
-              {mainWord}
-            </Text>
+      <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
+        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>
+          <Text
+            style={{
+              color:
+                colorsArticle[article as keyof typeof colorsArticle] ||
+                navTheme.colors.text,
+            }}
+          >
+            {article}{' '}
+          </Text>
+          <Text
+            style={{
+              color:
+                colorsArticle[article as keyof typeof colorsArticle] ||
+                navTheme.colors.text,
+            }}
+          >
+            {mainWord}
           </Text>
         </Text>
-        {showTranslation && (
-          <Text
-            style={[styles.translationText, { color: navTheme.colors.text }]}
-          >
-            {currentWord.word.translation}
-          </Text>
+      </Text>
+    );
+  };
+
+  const TranslationWordComponent: React.FC = () => {
+    if (!currentWord) return null;
+
+    return (
+      <Text style={[styles.translationText, { color: navTheme.colors.text }]}>
+        {currentWord.word.translation}
+      </Text>
+    );
+  };
+
+  // Рендер раунда 1: показать слово с артиклем и кнопку
+  // Кнопка меняет текст: "Показать перевод" → "Дальше"
+  // -------------------------
+  const renderRound1 = () => {
+    return (
+      <View style={styles.card}>
+        {reversed ? (
+          <>
+            <CurrentWordComponent />
+            {showTranslation && <TranslationWordComponent />}
+          </>
+        ) : (
+          <>
+            <TranslationWordComponent />
+            {showTranslation && <CurrentWordComponent />}
+          </>
         )}
         <TouchableOpacity
           style={styles.button}
@@ -215,6 +238,15 @@ export default function TrainingScreen({ route }: Props) {
           <Text style={styles.buttonText}>
             {showTranslation ? 'Дальше' : 'Показать перевод'}
           </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            { flex: 1, marginLeft: 8, backgroundColor: '#6c757d' },
+          ]}
+          onPress={() => setReversed(prev => !prev)}
+        >
+          <Text style={styles.buttonText}>Наоборот</Text>
         </TouchableOpacity>
       </View>
     );
@@ -420,7 +452,7 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#007bff',
+    backgroundColor: '#28a745',
     borderRadius: 5,
   },
 });
