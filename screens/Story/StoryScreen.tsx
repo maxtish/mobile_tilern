@@ -31,7 +31,7 @@ interface StoryScreenProps {
 
 export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const user = useUserStore(state => state.user); // Получаем текущего пользователя из стора
-  const { navTheme } = useAppTheme(); // Тема приложения
+  const { navTheme, isDark } = useAppTheme(); // Тема приложения
   const { story } = route.params; // История из параметров
 
   // -------------------- Состояния --------------------
@@ -112,10 +112,13 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   return (
     <View style={[styles.container]}>
       {/* Изображение истории */}
-      <View style={styles.imageWrapper}>
+      <View>
         <Image
           source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
-          style={styles.image}
+          style={[
+            styles.image,
+            isDark ? styles.imageWrapperIsDark : styles.imageWrapper, // ← ДОБАВИТЬ ТУТ
+          ]}
           resizeMode="cover"
         />
         <TouchableOpacity
@@ -272,7 +275,8 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  imageWrapper: {},
+  imageWrapper: { opacity: 0.99 },
+  imageWrapperIsDark: { opacity: 0.4 },
   image: {
     width: '100%',
     aspectRatio: 16 / 7,
