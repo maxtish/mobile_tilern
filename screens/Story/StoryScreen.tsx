@@ -8,6 +8,8 @@ import {
   Dimensions,
   TouchableOpacity,
   ActivityIndicator,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { History } from '../../types/storiesTypes';
@@ -18,6 +20,7 @@ import { TextWithTouch } from '../../components/TextWithTouch';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAddWord } from '../../hooks/useAddWord';
 import { useWordPress } from '../../hooks/useWordPress';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Получаем ширину экрана для адаптивных размеров
 const { width } = Dimensions.get('window');
@@ -44,6 +47,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   }>({});
   const [activeArticleColors, setActiveArticleColors] = useState(false);
   const { addWord } = useAddWord(story, selectedIndex);
+
   // -------------------- Подсветка и автоскролл --------------------
   useEffect(() => {
     if (
@@ -102,6 +106,35 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       startSync();
     }
   };
+
+  // -------------------- приложение ушло в фон или свернуто → ставим паузу--------------------
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState: AppStateStatus) => {
+        if (nextAppState !== 'active') {
+          // приложение ушло в фон или свернуто → ставим паузу
+          if (sound && isPlaying) {
+            sound.pause();
+            stopSync(); // останавливаем подсветку слов
+            setIsPlaying(false);
+          }
+        }
+      },
+    );
+
+    return () => subscription.remove();
+  }, [sound, isPlaying]);
+
+  // При уходе на другой экран
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // когда экран теряет фокус (уходим на другой экран)
+        handlePlayPress();
+      };
+    }, [sound, isPlaying]),
+  );
 
   // -------------------- Обработка слов --------------------
 
