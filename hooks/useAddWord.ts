@@ -4,7 +4,7 @@ import { saveUserWord } from '../api/userWords';
 import { History, Word } from '../types/storiesTypes';
 import Toast from 'react-native-root-toast';
 
-export const useAddWord = (story: History) => {
+export const useAddWord = (story: History, indexW: number | null) => {
   const user = useUserStore(state => state.user);
 
   const addWord = async (wordText: string) => {
@@ -16,20 +16,15 @@ export const useAddWord = (story: History) => {
       return;
     }
 
-    const cleanedWordText = wordText.toLowerCase().trim();
-
-    const foundWord: Word | undefined = story.words.find(w => {
-      if (!w.word) return false;
-      if (typeof w.word === 'string') {
-        const normalized = w.word
-          .toLowerCase()
-          .replace(/^(der|die|das|ein|eine)\s+/, '');
-        return cleanedWordText === normalized;
-      }
-      return false;
-    });
-
-    if (!foundWord) {
+    let foundWord: Word | undefined = undefined;
+    if (
+      indexW !== null &&
+      indexW !== undefined &&
+      story.words.length === story.tokenTiming.length
+    ) {
+      foundWord = story.words[indexW];
+    }
+    if (foundWord === undefined) {
       Toast.show('Слово не найдено в списке слов истории', {
         duration: Toast.durations.SHORT,
         position: Toast.positions.TOP,

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Word, WordTiming } from '../types/storiesTypes';
+import { Word, TokenTiming } from '../types/storiesTypes';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { normalizeWord } from '../utils/normalizeWord';
 import { colorsArticle } from '../constants/constants';
@@ -10,7 +10,7 @@ interface TextWithTouchProps {
   ruText: string;
   activeArticleColors: boolean;
   wordsHistory: Word[];
-  wordTiming: WordTiming[];
+  tokenTiming: TokenTiming[];
   activeIndex: number | null;
   selectedWord: string | null;
   selectedIndex: number | null;
@@ -18,25 +18,47 @@ interface TextWithTouchProps {
   onLayout?: (index: number, layout: { y: number; height: number }) => void;
 }
 
-const splitWord = (text: string) => {
-  const match = text.match(/^([\p{L}\p{N}%°]+)(.*)$/u);
+export const splitWord = (text: string) => {
+  let extraBefore = '';
+  let extraAfter = '';
 
-  if (!match) {
-    return { pure: text.trim(), extra: text.replace(text.trim(), '') };
+  let s = text;
+
+  // 1. Пробелы в начале → extraBefore
+  const leadingSpaces = s.match(/^\s+/);
+  if (leadingSpaces) {
+    extraBefore += leadingSpaces[0];
+    s = s.slice(leadingSpaces[0].length);
   }
 
-  return {
-    pure: match[1], // чистое слово
-    extra: match[2], // знаки, пробелы, хвост
-  };
+  // 2. Ведущая пунктуация (например „) → extraBefore
+  const leadingPunct = s.match(/^[^°0-9A-Za-zÀ-ÿ\p{L}]/u);
+  if (leadingPunct) {
+    extraBefore += leadingPunct[0];
+    s = s.slice(leadingPunct[0].length);
+  }
+
+  // 3. pure + tail
+  const match = s.match(/^(.+?)([\s\p{P}]*?)$/u);
+
+  if (!match) {
+    return { pure: s, extraBefore, extraAfter };
+  }
+
+  const pure = match[1];
+  const tail = match[2] || '';
+  extraAfter = tail;
+
+  return { pure, extraBefore, extraAfter };
 };
+
 ///////////////////////
 export const TextWithTouch: React.FC<TextWithTouchProps> = ({
   showSentenceTranslation,
   ruText,
   activeArticleColors,
   wordsHistory,
-  wordTiming,
+  tokenTiming,
   activeIndex,
   selectedWord,
   selectedIndex,
@@ -47,20 +69,26 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
 
   //////////////////
 
-  const ruSentencesArr = (ruText.match(/[^.!?:]+[.!?:]+/g) || [ruText])
+  const ruSentencesArr = (ruText.match(/[^.!?]+[.!?]+/g) || [ruText])
     .map(s => s.trim())
     .filter(Boolean);
   let sentences = 0;
   ////////
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-      {wordTiming.map((w, index) => {
+      {tokenTiming.map((w, index) => {
         const currentWord: Word = wordsHistory[index];
         if (!currentWord) return null;
-        const { pure, extra } = splitWord(w.word);
+        const { pure, extraBefore, extraAfter } = splitWord(w.word);
 
-        const endsSentence = extra === '.' || extra === '!' || extra === '?';
-        const extraSp = extra + ' ';
+        const endsSentence =
+          extraAfter === '.' ||
+          extraAfter === '!' ||
+          extraAfter === '?' ||
+          extraAfter === '.“' ||
+          extraAfter === '!“' ||
+          extraAfter === '?“';
+        const extraSp = extraAfter + ' ';
         // Фраза для отображения после конца предложения
         const ruSentence = endsSentence ? ruSentencesArr[sentences] : null;
 
@@ -79,9 +107,6 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
           mainWord = parts.slice(1).join(' ');
         }
 
-        const isSelected =
-          selectedWord && normalizeWord(selectedWord) === normalizeWord(w.word);
-
         return (
           <React.Fragment key={index}>
             <View
@@ -94,6 +119,21 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
                 flexWrap: 'wrap',
               }}
             >
+              {/* EXTRA BEFORE */}
+              {extraBefore ? (
+                <Text
+                  style={[
+                    styles.extraText,
+                    {
+                      color: appTheme.colors.textHistory,
+                      marginLeft: 7, // marginLeft на ведущий знак
+                    },
+                  ]}
+                >
+                  {extraBefore}
+                </Text>
+              ) : null}
+
               {/* PURE WORD */}
               <Text
                 onPress={() => onWordPress(w.word, index)}
@@ -104,7 +144,6 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
                       isActive || selectedIndex === index
                         ? appTheme.colors.wordHistoryBackground
                         : 'transparent',
-
                     color:
                       isActive || selectedIndex === index
                         ? appTheme.colors.textHistory
@@ -115,20 +154,21 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
                               article as keyof typeof colorsArticle
                             ]) ||
                           appTheme.colors.textHistory,
+                    marginLeft: extraBefore ? 0 : 7, // marginLeft только если нет leading знака
                   },
                 ]}
               >
                 {pure}
               </Text>
 
-              {/* EXTRA SYMBOLS (.,!?, space...) */}
+              {/* EXTRA AFTER */}
               <Text
                 style={[
                   styles.extraText,
                   { color: appTheme.colors.textHistory },
                 ]}
               >
-                {extra + ''}
+                {extraAfter}
               </Text>
             </View>
 
@@ -150,7 +190,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
     borderRadius: 6,
     overflow: 'hidden',
-    paddingLeft: 7,
+    marginLeft: 7,
     paddingVertical: 1,
   },
   extraText: {

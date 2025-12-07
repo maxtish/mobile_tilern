@@ -33,7 +33,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const user = useUserStore(state => state.user); // Получаем текущего пользователя из стора
   const { navTheme } = useAppTheme(); // Тема приложения
   const { story } = route.params; // История из параметров
-  const { addWord } = useAddWord(story);
+
   // -------------------- Состояния --------------------
   const [activeIndex, setActiveIndex] = useState<number | null>(null); // Индекс текущего слова для подсветки
   const [showSentenceTranslation, setShowSentenceTranslation] = useState(false); // Флаг показа перевода предложений
@@ -43,6 +43,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     [key: number]: { y: number; height: number };
   }>({});
   const [activeArticleColors, setActiveArticleColors] = useState(false);
+  const { addWord } = useAddWord(story, selectedIndex);
   // -------------------- Подсветка и автоскролл --------------------
   useEffect(() => {
     if (
@@ -69,8 +70,13 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     timerRef.current = setInterval(() => {
       sound.getCurrentTime(seconds => {
         const adjustedTime = seconds + SYNC_OFFSET;
-        const index = story.wordTiming.findIndex(
-          w => adjustedTime >= w.start && adjustedTime <= w.end,
+        // ищем первый токен, который имеет тайминги и попадает в текущий момент
+        const index = story.tokenTiming.findIndex(
+          w =>
+            w.start !== null &&
+            w.end !== null &&
+            adjustedTime >= w.start &&
+            adjustedTime <= w.end,
         );
         setActiveIndex(index >= 0 ? index : null);
       });
@@ -233,13 +239,13 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             ruText={story.fullStory.ru}
             activeArticleColors={activeArticleColors}
             wordsHistory={story.words}
-            wordTiming={story.wordTiming}
+            tokenTiming={story.tokenTiming}
             activeIndex={activeIndex}
             selectedWord={selectedWord}
             selectedIndex={selectedIndex}
             onWordPress={(word, index) => {
               setSelectedIndex(index);
-              handleWordPress(word);
+              handleWordPress(word, index);
             }}
             onLayout={(index, layout) => {
               wordLayouts.current[index] = layout;

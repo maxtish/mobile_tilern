@@ -1,11 +1,12 @@
 import React, { ReactNode, useEffect } from 'react';
 import RootNavigator from './navigation/RootNavigator';
-import { ThemeProvider } from './theme/ThemeProvider';
+import { ThemeProvider, useAppTheme } from './theme/ThemeProvider';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
-import { useAppTheme } from './theme/ThemeProvider';
+
 import SplashScreen from 'react-native-splash-screen';
 import { RootSiblingParent } from 'react-native-root-siblings';
+import { StatusBar } from 'react-native';
 
 export default function App() {
   useEffect(() => {
@@ -15,15 +16,29 @@ export default function App() {
   return (
     <RootSiblingParent>
       <ThemeProvider>
-        <SafeAreaProvider>
-          <SafeAreaWrapper>
-            <RootNavigator />
-          </SafeAreaWrapper>
-        </SafeAreaProvider>
+        <AppContent />
       </ThemeProvider>
     </RootSiblingParent>
   );
 }
+
+// AppContent чтобы можно было использовать useAppTheme
+const AppContent: React.FC = () => {
+  const { appTheme, isDark } = useAppTheme();
+
+  return (
+    <SafeAreaProvider>
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+      />
+      <SafeAreaWrapper>
+        <RootNavigator />
+      </SafeAreaWrapper>
+    </SafeAreaProvider>
+  );
+};
 
 const SafeAreaWrapper: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { appTheme } = useAppTheme();
