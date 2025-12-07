@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   AppState,
   AppStateStatus,
+  Alert,
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { History } from '../../types/storiesTypes';
@@ -21,6 +22,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAddWord } from '../../hooks/useAddWord';
 import { useWordPress } from '../../hooks/useWordPress';
 import { useFocusEffect } from '@react-navigation/native';
+import { deleteHistory } from '../../api/deleteHistory';
+import Toast from 'react-native-root-toast';
 
 // Получаем ширину экрана для адаптивных размеров
 const { width } = Dimensions.get('window');
@@ -107,6 +110,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     }
   };
 
+  const Pause = () => {
+    if (sound && isPlaying) {
+      sound.pause();
+      stopSync(); // останавливаем подсветку слов
+      setIsPlaying(false);
+    }
+  };
+
   // -------------------- приложение ушло в фон или свернуто → ставим паузу--------------------
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -114,11 +125,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       (nextAppState: AppStateStatus) => {
         if (nextAppState !== 'active') {
           // приложение ушло в фон или свернуто → ставим паузу
-          if (sound && isPlaying) {
-            sound.pause();
-            stopSync(); // останавливаем подсветку слов
-            setIsPlaying(false);
-          }
+          Pause();
         }
       },
     );
@@ -131,7 +138,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     React.useCallback(() => {
       return () => {
         // когда экран теряет фокус (уходим на другой экран)
-        handlePlayPress();
+        Pause();
       };
     }, [sound, isPlaying]),
   );
@@ -163,6 +170,44 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         <View style={styles.levelBadge}>
           <Text style={styles.levelText}>{story.languageLevel}</Text>
         </View>
+        {user?.role === 'ADMIN' && (
+          <TouchableOpacity
+            style={styles.deleteIcon}
+            onPress={() => {
+              Alert.alert(
+                'Удалить историю?',
+                'После удаления восстановить нельзя.',
+                [
+                  { text: 'Отмена', style: 'cancel' },
+                  {
+                    text: 'Удалить',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await deleteHistory(story.id);
+
+                        Toast.show('История удалена', {
+                          duration: Toast.durations.SHORT,
+                          position: Toast.positions.BOTTOM,
+                        });
+
+                        navigation.goBack();
+                      } catch (err: any) {
+                        Toast.show('Ошибка удаления', {
+                          duration: Toast.durations.SHORT,
+                          position: Toast.positions.BOTTOM,
+                          backgroundColor: 'red',
+                        });
+                      }
+                    },
+                  },
+                ],
+              );
+            }}
+          >
+            <Ionicons name="trash-outline" size={22} color="#ff4444" />
+          </TouchableOpacity>
+        )}
 
         {/* Перевод выбранного слова */}
         {translation && (
@@ -338,6 +383,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  deleteIcon: {
+    position: 'absolute',
+    top: 12,
+    left: '50%',
+    marginLeft: -18, // половина ширины контейнера 36px
+    width: 36,
+    height: 36,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   levelBadge: {
     position: 'absolute',
     top: 12,
