@@ -18,7 +18,9 @@ interface TextWithTouchProps {
   onLayout?: (index: number, layout: { y: number; height: number }) => void;
 }
 
-export const splitWord = (text: string) => {
+export const splitWord = (
+  text: string,
+): { pure: string; extraBefore: string; extraAfter: string } => {
   let extraBefore = '';
   let extraAfter = '';
 
@@ -191,6 +193,7 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
 const styles = StyleSheet.create({
   pureWord: {
     fontSize: 18,
+    fontWeight: '800',
     lineHeight: 28,
     letterSpacing: 1.1,
     borderRadius: 6,
@@ -199,6 +202,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   extraText: {
+    fontWeight: '800',
     fontSize: 18,
     lineHeight: 28,
     letterSpacing: 1.1,

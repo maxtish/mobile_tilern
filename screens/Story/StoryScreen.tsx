@@ -17,7 +17,7 @@ import { History } from '../../types/storiesTypes';
 import { colorsArticle, SERVER_URL } from '../../constants/constants';
 import { useUserStore } from '../../state/userStore';
 import { useAudio } from '../../hooks/useAudio';
-import { TextWithTouch } from '../../components/TextWithTouch';
+import { splitWord, TextWithTouch } from '../../components/TextWithTouch';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAddWord } from '../../hooks/useAddWord';
 import { useWordPress } from '../../hooks/useWordPress';
@@ -37,7 +37,7 @@ interface StoryScreenProps {
 
 export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const user = useUserStore(state => state.user); // Получаем текущего пользователя из стора
-  const { navTheme, isDark } = useAppTheme(); // Тема приложения
+  const { navTheme, isDark, appTheme } = useAppTheme(); // Тема приложения
   const { story } = route.params; // История из параметров
 
   // -------------------- Состояния --------------------
@@ -213,8 +213,10 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         {translation && (
           <View style={styles.translationOverlay}>
             <Text style={styles.translationText}>
-              {baseFormText
-                ? `${baseFormText} - ${translation}`
+              {baseFormText && selectedWord
+                ? `${baseFormText}  \n ${
+                    splitWord(selectedWord).pure
+                  } - ${translation}`
                 : `${selectedWord} - ${translation}`}
             </Text>
             {user && selectedWord && (
@@ -308,7 +310,9 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         >
           {/* Заголовок и уровень истории */}
           <View style={styles.header}>
-            <Text style={[styles.title, { color: navTheme.colors.text }]}>
+            <Text
+              style={[styles.title, { color: appTheme.colors.textHistory }]}
+            >
               {story.title.de}
             </Text>
           </View>
@@ -408,7 +412,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  translationText: { color: '#bbbbbb', fontSize: 16, fontWeight: '600' },
+  translationText: {
+    color: '#bbbbbb',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   title: { fontSize: 22, fontWeight: 'bold', flex: 1 },
 
