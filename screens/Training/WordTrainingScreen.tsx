@@ -389,6 +389,13 @@ export default function TrainingScreen({ route }: Props) {
         <Text style={styles.backButtonText}>Все слова</Text>
       </TouchableOpacity>
       <TouchableOpacity
+        style={[styles.backButton, { backgroundColor: '#28a745' }]}
+        onPress={() => navigation.navigate('GameMemory')}
+      >
+        <Text style={styles.backButtonText}>GameMemory</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >

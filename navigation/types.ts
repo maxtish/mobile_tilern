@@ -8,4 +8,5 @@ export type RootStackParamList = {
   AddStory: undefined;
   WordTraining: { userId: string | undefined };
   AllWords: undefined;
+  GameMemory: undefined;
 };
