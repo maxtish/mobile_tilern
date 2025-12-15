@@ -1,6 +1,6 @@
 // api/auth/login.ts
-import { SERVER_URL } from '../constants/constants';
-import { LoginResponse } from '../types/userTypes';
+import { SERVER_URL } from '../../constants/constants';
+import { LoginResponse } from '../../types/userTypes';
 
 export async function login(
   email: string,

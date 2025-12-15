@@ -1,5 +1,5 @@
-import { SERVER_URL } from '../constants/constants';
-import { LoginResponse } from '../types/userTypes';
+import { SERVER_URL } from '../../constants/constants';
+import { LoginResponse } from '../../types/userTypes';
 
 export async function register(
   email: string,

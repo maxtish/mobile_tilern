@@ -1,32 +1,23 @@
-import { SERVER_URL } from '../constants/constants';
-import { useUserStore } from '../state/userStore';
+import { apiFetch } from './apiFetch';
 
 interface AddHistoryResponse {
   generatedStory: string;
 }
 
 export async function addHistory(story: string): Promise<AddHistoryResponse> {
-  const token = useUserStore.getState().token; // достаем токен напрямую из Zustand
-
-  if (!token) {
-    throw new Error('Пользователь не авторизован');
-  }
-
-  const res = await fetch(`${SERVER_URL}/history`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+  const res = await apiFetch(
+    '/history',
+    {
+      method: 'POST',
+      body: JSON.stringify({ story }),
     },
-    body: JSON.stringify({ story }),
-  });
-
-  const data = await res.json();
+    true, // требует авторизации
+  );
 
   if (!res.ok) {
-    // Выдаем ошибку с сервера, если есть поле error
-    throw new Error(data.error || `Ошибка ${res.status}: ${res.statusText}`);
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Ошибка ${res.status}`);
   }
 
-  return data;
+  return res.json();
 }

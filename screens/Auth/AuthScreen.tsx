@@ -13,9 +13,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 
 import { useUserStore } from '../../state/userStore';
-import { login } from '../../api/login';
-import { register } from '../../api/register';
+import { login } from '../../api/auth/login';
 import { useAppTheme } from '../../theme/ThemeProvider';
+import { register } from '../../api/auth/register';
+import { mapServerUserToClient } from '../../types/userTypes';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
@@ -49,7 +50,15 @@ export default function AuthScreen() {
         ? await login(email, password)
         : await register(email, password, name);
 
-      setUser(data.user, data.token);
+      // мапим серверного юзера в клиентского
+      const user = mapServerUserToClient(data.user);
+
+      // Сохраняем user + accessToken + refreshToken
+      useUserStore.getState().setUser(
+        user,
+        data.accessToken, // <-- accessToken
+        data.refreshToken, // <-- refreshToken
+      );
     } catch (err: any) {
       Alert.alert('Error', err.message);
     }

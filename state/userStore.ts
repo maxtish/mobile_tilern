@@ -39,13 +39,17 @@ const asyncStorageUserState: PersistStorage<UserState> = {
   },
 };
 
+///////Храним токены
+
 export const useUserStore = create<UserState>()(
   persist(
     set => ({
       user: null,
       token: null,
-      setUser: (user, token) => set({ user, token }),
-      logout: () => set({ user: null, token: null }),
+      refreshToken: null, // <- добавляем
+      setUser: (user, token, refreshToken) =>
+        set({ user, token, refreshToken }),
+      logout: () => set({ user: null, token: null, refreshToken: null }),
     }),
     {
       name: 'user-storage',

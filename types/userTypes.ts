@@ -1,10 +1,12 @@
 export interface UserState {
   user: User | null;
   token: string | null;
-  setUser: (user: User, token: string) => void;
+  refreshToken: string | null; // <- добавляем
+  setUser: (user: User, token: string, refreshToken: string) => void; // <- теперь 3 аргумента
   logout: () => void;
 }
 
+///'USER' | 'ADMIN' | 'PREMIUM' | 'EDITOR'
 export type UserRole = 'USER' | 'PREMIUM' | 'EDITOR' | 'ADMIN';
 
 // --- Клиентская модель (для API / фронта) ---
@@ -30,15 +32,29 @@ export interface DBUser {
 }
 
 // --- Маппер: DB → API (server response) ---
-export const mapDBUserToUser = (dbUser: DBUser): User => ({
-  id: dbUser.id,
-  email: dbUser.email,
-  name: dbUser.name,
-  avatarUrl: dbUser.avatar_url,
-  role: dbUser.role,
+
+export const mapServerUserToClient = (serverUser: {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  avatar_url?: string;
+}) => ({
+  id: serverUser.id,
+  email: serverUser.email,
+  name: serverUser.name ?? null,
+  role: serverUser.role,
+  avatarUrl: serverUser.avatar_url ?? null,
 });
 
 export interface LoginResponse {
-  user: User;
-  token: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: UserRole;
+    avatar_url?: string;
+  };
+  accessToken: string; // <-- добавляем
+  refreshToken: string; // <-- добавляем
 }

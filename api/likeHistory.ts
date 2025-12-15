@@ -1,46 +1,37 @@
-// api/likeHistory.ts
-import { SERVER_URL } from '../constants/constants';
+import { apiFetch } from './apiFetch';
 
 export const likeHistory = async (historyId: string, userId: string) => {
-  try {
-    const res = await fetch(`${SERVER_URL}/history/like/${historyId}`, {
+  const res = await apiFetch(
+    `/history/like/${historyId}`,
+    {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
-    });
+    },
+    true,
+  );
 
-    if (!res.ok) {
-      const errorData = await res
-        .json()
-        .catch(() => ({ error: res.statusText }));
-      throw new Error(errorData.error || `Ошибка ${res.status}`);
-    }
-
-    return res.json(); // сразу возвращаем JSON
-  } catch (e) {
-    console.error('Ошибка лайка:', e);
-    return null;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Ошибка ${res.status}`);
   }
+
+  return res.json();
 };
 
 export const unlikeHistory = async (historyId: string, userId: string) => {
-  try {
-    const res = await fetch(`${SERVER_URL}/history/unlike/${historyId}`, {
+  const res = await apiFetch(
+    `/history/unlike/${historyId}`,
+    {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
-    });
+    },
+    true,
+  );
 
-    if (!res.ok) {
-      const errorData = await res
-        .json()
-        .catch(() => ({ error: res.statusText }));
-      throw new Error(errorData.error || `Ошибка ${res.status}`);
-    }
-
-    return res.json();
-  } catch (e) {
-    console.error('Ошибка снятия лайка:', e);
-    return null;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Ошибка ${res.status}`);
   }
+
+  return res.json();
 };
