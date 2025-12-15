@@ -26,7 +26,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const { navTheme, appTheme, toggleTheme } = useAppTheme();
+  const { appTheme, toggleTheme } = useAppTheme();
   const navigation = useNavigation<NavigationProp>();
   const user = useUserStore(state => state.user);
   const [histories, setHistories] = useState<History[]>([]);
@@ -93,8 +93,8 @@ export default function HomeScreen() {
             style={[
               styles.title,
               {
-                color: navTheme.colors.text,
-                fontFamily: navTheme.fonts.heavy.fontFamily,
+                color: appTheme.colors.text,
+                fontFamily: appTheme.fonts.heavy.fontFamily,
               },
             ]}
           >
@@ -104,20 +104,20 @@ export default function HomeScreen() {
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
-            style={[styles.avatar, { backgroundColor: navTheme.colors.card }]}
+            style={[styles.avatar, { backgroundColor: appTheme.colors.card }]}
             onPress={() => navigation.navigate('Auth')}
           >
-            <Text style={{ color: navTheme.colors.text }}>A</Text>
+            <Text style={{ color: appTheme.colors.text }}>A</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={toggleTheme}
             style={[
               styles.themeButton,
-              { backgroundColor: navTheme.colors.primary },
+              { backgroundColor: appTheme.colors.primary },
             ]}
           >
-            <Text style={{ color: navTheme.colors.text }}>🌓</Text>
+            <Text style={{ color: appTheme.colors.text }}>🌓</Text>
           </TouchableOpacity>
         </View>
       </View>

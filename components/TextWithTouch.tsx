@@ -82,8 +82,7 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
   ////////
   return (
     <ImageBackground
-      source={backgroundTexture}
-      imageStyle={{ resizeMode: 'repeat', opacity: 0.7, borderRadius: 15 }}
+      imageStyle={{ resizeMode: 'repeat', borderRadius: 15 }}
       style={{
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -151,16 +150,13 @@ export const TextWithTouch: React.FC<TextWithTouchProps> = ({
                       isActive || selectedIndex === index
                         ? appTheme.colors.wordHistoryBackground
                         : 'transparent',
-                    color:
-                      isActive || selectedIndex === index
-                        ? appTheme.colors.textHistory
-                        : activeArticleColors
-                        ? appTheme.colors.textHistory
-                        : (article &&
-                            colorsArticle[
-                              article as keyof typeof colorsArticle
-                            ]) ||
-                          appTheme.colors.textHistory,
+                    color: activeArticleColors
+                      ? appTheme.colors.textHistory
+                      : (article &&
+                          colorsArticle[
+                            article as keyof typeof colorsArticle
+                          ]) ||
+                        appTheme.colors.textHistory,
                     marginLeft: extraBefore ? 0 : 7, // marginLeft только если нет leading знака
                   },
                 ]}

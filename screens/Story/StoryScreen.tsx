@@ -37,7 +37,7 @@ interface StoryScreenProps {
 
 export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const user = useUserStore(state => state.user); // Получаем текущего пользователя из стора
-  const { navTheme, isDark, appTheme } = useAppTheme(); // Тема приложения
+  const { isDark, appTheme } = useAppTheme(); // Тема приложения
   const { story } = route.params; // История из параметров
 
   // -------------------- Состояния --------------------
@@ -224,9 +224,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
                 style={styles.addWordButton}
                 onPress={() => selectedWord && addWord(selectedWord)}
               >
-                <Text style={{ color: '#bbbbbb', fontWeight: 'bold' }}>
-                  Добавить слово
-                </Text>
+                <Text style={{ color: appTheme.colors.text }}>+</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -246,7 +244,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         <TouchableOpacity
           style={[
             styles.playButton,
-            { backgroundColor: isLoading ? '#888' : '#3b3b3b' },
+            { backgroundColor: isLoading ? '#424242ff' : '#424242ff' },
           ]}
           onPress={handlePlayPress}
           disabled={isLoading}
@@ -269,7 +267,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             <Text
               style={[
                 styles.articleText,
-                { color: colorsArticle.der || navTheme.colors.text },
+                { color: colorsArticle.der || appTheme.colors.text },
               ]}
             >
               der{' '}
@@ -277,7 +275,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             <Text
               style={[
                 styles.articleText,
-                { color: colorsArticle.die || navTheme.colors.text },
+                { color: colorsArticle.die || appTheme.colors.text },
               ]}
             >
               die{' '}
@@ -285,7 +283,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             <Text
               style={[
                 styles.articleText,
-                { color: colorsArticle.das || navTheme.colors.text },
+                { color: colorsArticle.das || appTheme.colors.text },
               ]}
             >
               das
@@ -371,7 +369,7 @@ const styles = StyleSheet.create({
     bottom: 12,
     left: 12,
     right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 12,
     padding: 8,
     alignItems: 'center',
@@ -446,7 +444,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: 14,
-    backgroundColor: '#3b3b3b', // тёмный бархатный
+    backgroundColor: '#424242ff', // тёмный бархатный
   },
 
   articlesRow: {
@@ -463,7 +461,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: 14,
-    backgroundColor: '#3b3b3b',
+    backgroundColor: '#424242ff',
     alignSelf: 'center',
     marginTop: 16,
   },

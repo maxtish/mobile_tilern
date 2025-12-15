@@ -24,11 +24,11 @@ export const navLightTheme: Theme = {
 export const navDarkTheme: Theme = {
   dark: true,
   colors: {
-    primary: '#6C8EFF',
-    background: '#1c1c1c',
-    card: '#8ea6f5ff',
-    text: '#FFFFFF',
-    border: '#333333',
+    primary: '#FF453A',
+    background: '#FF453A',
+    card: '#FF453A',
+    text: '#FF453A',
+    border: '#FF453A',
     notification: '#FF453A',
   },
   fonts: {
@@ -44,12 +44,12 @@ export const appLightTheme = {
   dark: false,
   colors: {
     primary: '#4B7BE5',
-    background: '#F9FAFB',
+    background: '#ddddddff',
     card: '#8ea6f5ff',
     text: '#1E1E1E',
     border: '#E5E7EB',
     notification: '#FF3B30',
-    textHistory: '#272727ff',
+    textHistory: '#424242ff',
     wordHistoryBackground: '#535353ff',
   },
   fonts: {
@@ -64,13 +64,13 @@ export const appDarkTheme = {
   dark: true,
   colors: {
     primary: '#6C8EFF',
-    background: '#1c1c1c',
+    background: '#333333ff',
     card: '#8ea6f5ff',
     text: '#FFFFFF',
     border: '#333333',
     notification: '#FF453A',
-    textHistory: '#bbbbbb',
-    wordHistoryBackground: '#3b3b3b',
+    textHistory: '#CFCFCF',
+    wordHistoryBackground: '#524c4cff',
   },
   fonts: {
     regular: { fontFamily: 'Roboto-Regular', fontWeight: '400' as const },

@@ -43,7 +43,7 @@ export const ThemeProvider: React.FC<Props> = ({ children }) => {
 
   return (
     <ThemeContext.Provider value={{ navTheme, appTheme, toggleTheme, isDark }}>
-      <NavigationContainer theme={navTheme}>{children}</NavigationContainer>
+      <NavigationContainer theme={appTheme}>{children}</NavigationContainer>
     </ThemeContext.Provider>
   );
 };

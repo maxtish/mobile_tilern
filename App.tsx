@@ -24,7 +24,7 @@ export default function App() {
 
 // AppContent чтобы можно было использовать useAppTheme
 const AppContent: React.FC = () => {
-  const { appTheme, isDark } = useAppTheme();
+  const { isDark } = useAppTheme();
 
   return (
     <SafeAreaProvider>
