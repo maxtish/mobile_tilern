@@ -26,7 +26,7 @@ type AddStoryScreenNavigationProp = NavigationProp<
 >;
 
 export default function TrainingScreen({ route }: Props) {
-  const { navTheme } = useAppTheme();
+  const { appTheme } = useAppTheme();
   const { userId } = route.params;
 
   const { words, setWords, markCorrect, markFailed } = useTrainingStore();
@@ -180,13 +180,13 @@ export default function TrainingScreen({ route }: Props) {
     }
 
     return (
-      <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
+      <Text style={[styles.wordText, { color: appTheme.colors.text }]}>
         <Text style={{ fontSize: 24, fontWeight: 'bold' }}>
           <Text
             style={{
               color:
                 colorsArticle[article as keyof typeof colorsArticle] ||
-                navTheme.colors.text,
+                appTheme.colors.text,
             }}
           >
             {article}{' '}
@@ -195,7 +195,7 @@ export default function TrainingScreen({ route }: Props) {
             style={{
               color:
                 colorsArticle[article as keyof typeof colorsArticle] ||
-                navTheme.colors.text,
+                appTheme.colors.text,
             }}
           >
             {mainWord}
@@ -208,7 +208,7 @@ export default function TrainingScreen({ route }: Props) {
   const TranslationWordComponent: React.FC = () => {
     if (!currentWord) return null;
     return (
-      <Text style={[styles.translationText, { color: navTheme.colors.text }]}>
+      <Text style={[styles.translationText, { color: appTheme.colors.text }]}>
         {currentWord.word.translation}
       </Text>
     );
@@ -274,23 +274,23 @@ export default function TrainingScreen({ route }: Props) {
 
     return (
       <View style={styles.card}>
-        <Text style={[styles.wordText, { color: navTheme.colors.text }]}>
+        <Text style={[styles.wordText, { color: appTheme.colors.text }]}>
           {currentWord.word.translation}
         </Text>
         <TextInput
           style={[
             styles.input,
             {
-              borderColor: navTheme.colors.text,
+              borderColor: appTheme.colors.text,
               backgroundColor:
-                isCorrect === false ? '#661a1aff' : navTheme.colors.background,
-              color: navTheme.colors.text,
+                isCorrect === false ? '#661a1aff' : appTheme.colors.background,
+              color: appTheme.colors.text,
             },
           ]}
           value={userInput}
           onChangeText={setUserInput}
           placeholder="Введите немецкое слово "
-          placeholderTextColor={navTheme.colors.text}
+          placeholderTextColor={appTheme.colors.text}
         />
         {!isCorrect && (
           <TouchableOpacity style={styles.button} onPress={checkAnswer}>
@@ -305,7 +305,7 @@ export default function TrainingScreen({ route }: Props) {
                 {
                   color:
                     colorsArticle[article as keyof typeof colorsArticle] ||
-                    navTheme.colors.text,
+                    appTheme.colors.text,
                   opacity: 1,
                   fontSize: 20,
                 },
@@ -325,7 +325,7 @@ export default function TrainingScreen({ route }: Props) {
   if (loading) {
     return (
       <View
-        style={[styles.center, { backgroundColor: navTheme.colors.background }]}
+        style={[styles.center, { backgroundColor: appTheme.colors.background }]}
       >
         <ActivityIndicator size="large" color="#FFD700" />
       </View>
@@ -335,9 +335,9 @@ export default function TrainingScreen({ route }: Props) {
   if (!currentWord) {
     return (
       <View
-        style={[styles.center, { backgroundColor: navTheme.colors.background }]}
+        style={[styles.center, { backgroundColor: appTheme.colors.background }]}
       >
-        <Text style={{ color: navTheme.colors.text, fontSize: 18 }}>
+        <Text style={{ color: appTheme.colors.text, fontSize: 18 }}>
           Тренировка завершена! Все слова пройдены.
         </Text>
         <TouchableOpacity
@@ -357,16 +357,16 @@ export default function TrainingScreen({ route }: Props) {
     <View
       style={[
         styles.container,
-        { backgroundColor: navTheme.colors.background },
+        { backgroundColor: appTheme.colors.background },
       ]}
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <Text style={[styles.title, { color: navTheme.colors.text }]}>
+        <Text style={[styles.title, { color: appTheme.colors.text }]}>
           Тренировка слов
         </Text>
 
         <View style={styles.progressContainer}>
-          <Text style={[styles.progressText, { color: navTheme.colors.text }]}>
+          <Text style={[styles.progressText, { color: appTheme.colors.text }]}>
             Пройдено: {passedCount} из {totalWords}
           </Text>
           <View style={styles.progressBarBackground}>
