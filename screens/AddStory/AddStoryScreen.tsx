@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { addHistory } from '../../api/addHistory';
+import { submitGPTHistory } from '../../api/submitGPTHistory';
 
 type AddStoryScreenNavigationProp = NavigationProp<
   RootStackParamList,
@@ -26,6 +28,7 @@ export default function AddStoryScreen() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [generating, setGenerating] = useState(false);
 
   const handleAdd = async () => {
     setLoading(true);
@@ -34,7 +37,6 @@ export default function AddStoryScreen() {
 
     try {
       const data = await addHistory(title);
-      console.log('Сгенерированная история:', data.generatedStory);
       setSuccess(true);
       setTitle('');
     } catch (err: any) {
@@ -44,33 +46,71 @@ export default function AddStoryScreen() {
     }
   };
 
-  const isDisabled = title.trim().length === 0 || loading;
+  const handleGenerate = async () => {
+    if (!title.trim()) return;
+
+    setGenerating(true);
+    setError('');
+    try {
+      const data = await submitGPTHistory(title);
+      setTitle(data.generatedHistory);
+    } catch (err: any) {
+      setError(err.message || 'Ошибка при генерации истории');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const isAddDisabled = title.trim().length === 0 || loading;
+  const isGenerateDisabled = title.trim().length === 0 || generating;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Добавить историю</Text>
 
-      <TextInput
-        placeholder="Введите текст истории..."
-        value={title}
-        onChangeText={text => {
-          if (text.length <= 2000) {
-            setTitle(text);
-          } else {
-            setTitle(text.slice(0, 2000)); // обрезаем лишние символы
-          }
-        }}
-        multiline
-        textAlignVertical="top"
-        style={styles.input}
-      />
+      <View style={styles.inputWrapper}>
+        <TextInput
+          placeholder="Введите текст истории..."
+          value={title}
+          onChangeText={text => {
+            if (text.length <= 2000) {
+              setTitle(text);
+            } else {
+              setTitle(text.slice(0, 2000));
+            }
+          }}
+          multiline
+          textAlignVertical="top"
+          style={styles.input}
+        />
+        <TouchableOpacity
+          style={styles.generateIcon}
+          onPress={handleGenerate}
+          disabled={isGenerateDisabled}
+        >
+          {generating ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Ionicons
+              name="flash-outline"
+              size={28}
+              color={isGenerateDisabled ? '#ccc' : '#000'}
+            />
+          )}
+        </TouchableOpacity>
+      </View>
+
       <Text style={{ textAlign: 'right', marginBottom: 8 }}>
         {title.length}/2000
       </Text>
+
       <TouchableOpacity
-        style={[styles.addButton, isDisabled && { backgroundColor: '#a5d6a7' }]}
+        style={[
+          styles.addButton,
+          isAddDisabled && { backgroundColor: '#a5d6a7' },
+        ]}
         onPress={handleAdd}
-        disabled={isDisabled}
+        disabled={isAddDisabled}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
@@ -106,6 +146,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
+  inputWrapper: {
+    position: 'relative',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -115,6 +158,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+  },
+  generateIcon: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    padding: 6,
   },
   addButton: {
     backgroundColor: '#28a745',
