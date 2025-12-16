@@ -54,6 +54,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   }>({});
   const [activeArticleColors, setActiveArticleColors] = useState(false);
   const { addWord } = useAddWord(story, selectedIndex);
+  const [playbackRate, setPlaybackRate] = useState(1); // по умолчанию 1x
 
   // -------------------- Подсветка и автоскролл --------------------
   useEffect(() => {
@@ -122,6 +123,15 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     }
   };
 
+  // -------------------- скорость воспроизведения --------------------
+  const handleChangeSpeed = (rate: number) => {
+    setPlaybackRate(rate);
+
+    if (sound) {
+      sound.setSpeed(rate); // ✅ БЕЗ ошибок TS
+    }
+  };
+
   // -------------------- приложение ушло в фон или свернуто → ставим паузу--------------------
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -140,11 +150,10 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   // При уходе на другой экран
   useFocusEffect(
     React.useCallback(() => {
-      // 🔥 экран НЕ тухнет, пока этот скрин в фокусе
-      activateKeepAwake();
+      activateKeepAwake(); // не даем экрану засыпать
       return () => {
         // когда экран теряет фокус (уходим на другой экран)
-        deactivateKeepAwake(); // экран снова может тухнуть
+        deactivateKeepAwake();
         Pause(); // ставим аудио на паузу
       };
     }, [sound, isPlaying]),
@@ -266,6 +275,30 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             />
           )}
         </TouchableOpacity>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'center',
+            marginVertical: 8,
+          }}
+        >
+          {[0.7, 0.8, 0.9, 1, 1.1, 1.2].map(rate => (
+            <TouchableOpacity
+              key={rate}
+              onPress={() => handleChangeSpeed(rate)}
+              style={{
+                marginHorizontal: 6,
+                paddingVertical: 6,
+                paddingHorizontal: 12,
+                borderRadius: 12,
+                backgroundColor:
+                  playbackRate === rate ? '#FFD700' : '#424242ff',
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>{rate}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <TouchableOpacity
           style={styles.showButtonArticle}
           onPress={() => setActiveArticleColors(!activeArticleColors)}
