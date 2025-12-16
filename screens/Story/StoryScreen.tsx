@@ -24,6 +24,10 @@ import { useWordPress } from '../../hooks/useWordPress';
 import { useFocusEffect } from '@react-navigation/native';
 import { deleteHistory } from '../../api/deleteHistory';
 import Toast from 'react-native-root-toast';
+import {
+  activateKeepAwake,
+  deactivateKeepAwake,
+} from '@sayem314/react-native-keep-awake';
 
 // Получаем ширину экрана для адаптивных размеров
 const { width } = Dimensions.get('window');
@@ -136,9 +140,12 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   // При уходе на другой экран
   useFocusEffect(
     React.useCallback(() => {
+      // 🔥 экран НЕ тухнет, пока этот скрин в фокусе
+      activateKeepAwake();
       return () => {
         // когда экран теряет фокус (уходим на другой экран)
-        Pause();
+        deactivateKeepAwake(); // экран снова может тухнуть
+        Pause(); // ставим аудио на паузу
       };
     }, [sound, isPlaying]),
   );
