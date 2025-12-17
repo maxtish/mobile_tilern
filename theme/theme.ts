@@ -1,6 +1,7 @@
 // app/theme/theme.ts
 
 import { Theme } from '@react-navigation/native';
+import { AppTheme } from '../types/themeTypes';
 
 // ────────────── NavigationContainer Themes ──────────────
 export const navLightTheme: Theme = {
@@ -40,7 +41,7 @@ export const navDarkTheme: Theme = {
 };
 
 // ────────────── Кастомная тема приложения ──────────────
-export const appLightTheme = {
+export const appLightTheme: AppTheme = {
   dark: false,
   colors: {
     primary: '#4B7BE5',
@@ -60,7 +61,7 @@ export const appLightTheme = {
   },
 };
 
-export const appDarkTheme = {
+export const appDarkTheme: AppTheme = {
   dark: true,
   colors: {
     primary: '#6C8EFF',

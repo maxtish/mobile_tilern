@@ -23,7 +23,7 @@ import { useAddWord } from '../../hooks/useAddWord';
 import { useWordPress } from '../../hooks/useWordPress';
 import { useFocusEffect } from '@react-navigation/native';
 import { deleteHistory } from '../../api/deleteHistory';
-import Toast from 'react-native-root-toast';
+import Toast from 'react-native-toast-message';
 import {
   activateKeepAwake,
   deactivateKeepAwake,
@@ -202,17 +202,22 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
                       try {
                         await deleteHistory(story.id);
 
-                        Toast.show('История удалена', {
-                          duration: Toast.durations.SHORT,
-                          position: Toast.positions.BOTTOM,
+                        Toast.show({
+                          type: 'success',
+                          text1: 'История удалена',
+                          position: 'top',
+                          topOffset: 0,
+                          visibilityTime: 2000,
                         });
 
                         navigation.goBack();
                       } catch (err: any) {
-                        Toast.show('Ошибка удаления', {
-                          duration: Toast.durations.SHORT,
-                          position: Toast.positions.BOTTOM,
-                          backgroundColor: 'red',
+                        Toast.show({
+                          type: 'success',
+                          text1: 'Ошибка удаления',
+                          position: 'top',
+                          topOffset: 0,
+                          visibilityTime: 2000,
                         });
                       }
                     },

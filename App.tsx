@@ -3,10 +3,10 @@ import RootNavigator from './navigation/RootNavigator';
 import { ThemeProvider, useAppTheme } from './theme/ThemeProvider';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
-
 import SplashScreen from 'react-native-splash-screen';
-import { RootSiblingParent } from 'react-native-root-siblings';
 import { StatusBar } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { createToastConfig } from './components/toastConfig';
 
 export default function App() {
   useEffect(() => {
@@ -14,17 +14,15 @@ export default function App() {
   }, []);
 
   return (
-    <RootSiblingParent>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
-    </RootSiblingParent>
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
 // AppContent чтобы можно было использовать useAppTheme
 const AppContent: React.FC = () => {
-  const { isDark } = useAppTheme();
+  const { isDark, appTheme } = useAppTheme();
 
   return (
     <SafeAreaProvider>
@@ -36,6 +34,7 @@ const AppContent: React.FC = () => {
       <SafeAreaWrapper>
         <RootNavigator />
       </SafeAreaWrapper>
+      <Toast config={createToastConfig(appTheme)} />
     </SafeAreaProvider>
   );
 };
