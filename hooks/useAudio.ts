@@ -8,6 +8,7 @@ export const useAudio = (storyId: string, audioUrl: string) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const timerRef = useRef<number | null>(null);
+  const [isLooping, setIsLooping] = useState(false);
 
   useEffect(() => {
     const localPath = `${RNFS.CachesDirectoryPath}/${storyId}.mp3`;
@@ -40,13 +41,29 @@ export const useAudio = (storyId: string, audioUrl: string) => {
       sound.pause();
       setIsPlaying(false);
     } else {
-      sound.play(() => {
-        setIsPlaying(false);
-        onEnd?.();
-      });
+      const playCallback = (success: boolean) => {
+        if (success && isLooping) {
+          // Если включен повтор, запускаем снова
+          sound.play(playCallback);
+        } else {
+          setIsPlaying(false);
+          onEnd?.();
+        }
+      };
+
+      sound.play(playCallback);
       setIsPlaying(true);
     }
   };
 
-  return { sound, isPlaying, isLoading, play, timerRef, setIsPlaying };
+  return {
+    sound,
+    isPlaying,
+    isLoading,
+    play,
+    timerRef,
+    setIsPlaying,
+    isLooping,
+    setIsLooping,
+  };
 };

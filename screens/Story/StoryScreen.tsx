@@ -73,8 +73,16 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   }, [showSentenceTranslation]);
 
   // -------------------- Работа с аудио --------------------
-  const { sound, isPlaying, isLoading, play, timerRef, setIsPlaying } =
-    useAudio(story.id, story.audioUrl);
+  const {
+    sound,
+    isPlaying,
+    isLoading,
+    play,
+    timerRef,
+    setIsPlaying,
+    isLooping,
+    setIsLooping,
+  } = useAudio(story.id, story.audioUrl);
 
   // -------------------- Синхронизация слов --------------------
   const startSync = () => {
@@ -133,19 +141,22 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   };
 
   // -------------------- приложение ушло в фон или свернуто → ставим паузу--------------------
+
   useEffect(() => {
     const subscription = AppState.addEventListener(
       'change',
       (nextAppState: AppStateStatus) => {
         if (nextAppState !== 'active') {
-          // приложение ушло в фон или свернуто → ставим паузу
-          Pause();
+          // приложение ушло в фон или свернуто → ставим паузу если не включен повтор
+          if (!isLooping) {
+            Pause();
+          }
         }
       },
     );
 
     return () => subscription.remove();
-  }, [sound, isPlaying]);
+  }, [sound, isPlaying, isLooping]);
 
   // При уходе на другой экран
   useFocusEffect(
@@ -287,7 +298,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             marginVertical: 8,
           }}
         >
-          {[0.7, 0.8, 0.9, 1, 1.1, 1.2].map(rate => (
+          {[0.7, 0.8, 1].map(rate => (
             <TouchableOpacity
               key={rate}
               onPress={() => handleChangeSpeed(rate)}
@@ -304,6 +315,23 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             </TouchableOpacity>
           ))}
         </View>
+        <TouchableOpacity
+          style={[
+            styles.playButton,
+            {
+              backgroundColor: isLooping ? '#FFD700' : '#424242ff',
+              marginLeft: 8,
+            },
+          ]}
+          onPress={() => setIsLooping(!isLooping)}
+        >
+          <Ionicons
+            name={isLooping ? 'repeat' : 'repeat-outline'}
+            size={22}
+            color={isLooping ? '#000' : '#bbbbbb'}
+          />
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.showButtonArticle}
           onPress={() => setActiveArticleColors(!activeArticleColors)}
