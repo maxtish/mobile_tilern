@@ -40,6 +40,7 @@ export const createToastConfig = (theme: AppTheme) => {
 
 const styles = StyleSheet.create({
   base: {
+    paddingTop: 20,
     borderRadius: 16,
     borderLeftWidth: 0,
     minHeight: 56,

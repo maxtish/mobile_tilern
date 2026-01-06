@@ -9,6 +9,7 @@ import AddStoryScreen from '../screens/AddStory/AddStoryScreen';
 import AllWordsScreen from '../screens/WordsScreen/AllWordsScreen';
 import TrainingScreen from '../screens/Training/WordTrainingScreen';
 import GameMemoryScreen from '../screens/Game/GameMemoryScreen';
+import GrammarScreen from '../screens/Grammar/GrammarScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -48,6 +49,11 @@ export default function RootNavigator() {
       <Stack.Screen
         name="GameMemory"
         component={GameMemoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Grammar"
+        component={GrammarScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

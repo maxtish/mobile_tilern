@@ -193,6 +193,19 @@ export default function HomeScreen() {
           <Text style={styles.buttonText}>Очистить стейт</Text>
         </TouchableOpacity>
       </ScrollView>
+      {/* Кнопка WordTraining */}
+      {user ? (
+        <TouchableOpacity
+          style={styles.showButton}
+          onPress={() =>
+            navigation.navigate('WordTraining', { userId: user?.id })
+          }
+        >
+          <Text style={styles.showButtonText}>📚 Тренировка слов</Text>
+        </TouchableOpacity>
+      ) : (
+        <></>
+      )}
     </View>
   );
 }
@@ -289,5 +302,20 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 16,
+  },
+  showButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    backgroundColor: '#424242ff',
+    alignSelf: 'center',
+    marginTop: 16,
+  },
+
+  showButtonText: {
+    color: '#bbbbbb',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

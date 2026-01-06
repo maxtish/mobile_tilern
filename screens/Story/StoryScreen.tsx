@@ -382,14 +382,24 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         </ScrollView>
         {/* Кнопка WordTraining */}
         {user ? (
-          <TouchableOpacity
-            style={styles.showButton}
-            onPress={() =>
-              navigation.navigate('WordTraining', { userId: user?.id })
-            }
-          >
-            <Text style={styles.showButtonText}>📚 Тренировка слов</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.showButton}
+              onPress={() =>
+                navigation.navigate('WordTraining', { userId: user?.id })
+              }
+            >
+              <Text style={styles.showButtonText}>📚 Тренировка слов</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.showButton}
+              onPress={() =>
+                navigation.navigate('Grammar', { sentences: story.sentences })
+              }
+            >
+              <Text style={styles.showButtonText}>📚 Грамматика</Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <></>
         )}

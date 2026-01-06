@@ -1,4 +1,4 @@
-import { History } from '../types/storiesTypes';
+import { History, SentenceGrammar } from '../types/storiesTypes';
 
 // app/navigation/types.ts
 export type RootStackParamList = {
@@ -9,4 +9,5 @@ export type RootStackParamList = {
   WordTraining: { userId: string | undefined };
   AllWords: undefined;
   GameMemory: undefined;
+  Grammar: { sentences: SentenceGrammar[] };
 };
