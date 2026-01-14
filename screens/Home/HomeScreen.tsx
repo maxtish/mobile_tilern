@@ -1,63 +1,81 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  ImageBackground,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
-  Pressable,
+  Dimensions,
+  FlatList,
 } from 'react-native';
 
-import { useAppTheme } from '../../theme/ThemeProvider';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+import { useAppTheme } from '../../theme/ThemeProvider';
 import { RootStackParamList } from '../../navigation/types';
 import { useUserStore } from '../../state/userStore';
 import { getHistories } from '../../api/getHistories';
 import { History } from '../../types/storiesTypes';
-import { SERVER_URL } from '../../constants/constants';
 import { logoutAndClear } from '../../utils/logoutAndClear';
 import { handleLikeOutside } from '../../utils/handleLike';
+import { StoryCard } from '../../components/StoryCard';
+import { cacheStory } from '../../utils/cache/storyCache';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const { appTheme, toggleTheme } = useAppTheme();
   const navigation = useNavigation<NavigationProp>();
+  const { appTheme, toggleTheme } = useAppTheme();
   const user = useUserStore(state => state.user);
+
   const [histories, setHistories] = useState<History[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchHistories();
-    }, [user]),
-  );
+  const [page, setPage] = useState(1);
+  const [isMoreLoading, setIsMoreLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  const fetchHistories = async () => {
+  // ===== Загрузка историй =====
+  const fetchHistories = async (pageNum = 1) => {
+    if (isMoreLoading) return;
+
     try {
-      const data = await getHistories(user);
-      setHistories(data);
+      pageNum === 1 ? setLoading(true) : setIsMoreLoading(true);
+
+      const data = await getHistories(user, pageNum, 10);
+
+      if (data.length < 10) setHasMore(false);
+
+      setHistories(prev => (pageNum === 1 ? data : [...prev, ...data]));
+
+      setPage(pageNum);
     } catch (err: any) {
-      setError(err.message);
-      console.log('error', error);
+      setError(err.message || 'Ошибка загрузки');
     } finally {
       setLoading(false);
+      setIsMoreLoading(false);
     }
   };
 
-  /////////////////// Очистить стейт
-  const handleLogout = async () => {
-    await logoutAndClear(setHistories);
+  // При фокусе экрана
+  useFocusEffect(
+    useCallback(() => {
+      fetchHistories(1);
+    }, [user]),
+  );
+
+  // ===== Пагинация =====
+  const loadMore = () => {
+    if (!isMoreLoading && hasMore) {
+      fetchHistories(page + 1);
+    }
   };
 
-  ///////////////  для обработки лайков
+  // ===== Лайк =====
   const handleLike = async (story: History) => {
     handleLikeOutside({
       story,
@@ -68,36 +86,46 @@ export default function HomeScreen() {
     });
   };
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
+  // ===== Выход =====
+  const handleLogout = async () => {
+    await logoutAndClear(setHistories);
+  };
+
+  // ===== Рендер карточки =====
+  const renderStoryItem = useCallback(
+    ({ item }: { item: History }) => (
+      <StoryCard
+        story={item}
+        user={user}
+        isLikePending={pendingLikes.has(item.id)}
+        onPress={async story => {
+          cacheStory(story).catch(() => {});
+          navigation.navigate('StoryScreen', { storyId: String(story.id) });
+        }}
+        onLike={handleLike}
+      />
+    ),
+    [user, pendingLikes],
+  );
+
+  // ===== Лоадер при первом запуске =====
+  if (loading && histories.length === 0) {
+    return <ActivityIndicator style={{ flex: 1 }} size="large" />;
+  }
 
   return (
-    <View
-      style={{
-        flex: 1,
-        marginTop: 15,
-      }}
-    >
-      {/* Верхняя панель */}
+    <View style={{ flex: 1, marginTop: 15 }}>
+      {/* ===== Header ===== */}
       <View style={styles.header}>
-        {user?.role === 'ADMIN' || user?.role === 'USER' ? (
-          <>
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: '#28a745' }]}
-              onPress={() => navigation.navigate('AddStory')}
-            >
-              <Text style={styles.buttonText}>Добавить историю</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text
-            style={[
-              styles.title,
-              {
-                color: appTheme.colors.text,
-                fontFamily: appTheme.fonts.heavy.fontFamily,
-              },
-            ]}
+        {user ? (
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: '#28a745' }]}
+            onPress={() => navigation.navigate('AddStory')}
           >
+            <Text style={styles.buttonText}>Добавить историю</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={[styles.title, { color: appTheme.colors.text }]}>
             TiLern – Lies, lerne, sprich.
           </Text>
         )}
@@ -107,7 +135,9 @@ export default function HomeScreen() {
             style={[styles.avatar, { backgroundColor: appTheme.colors.card }]}
             onPress={() => navigation.navigate('Auth')}
           >
-            <Text style={{ color: appTheme.colors.text }}>A</Text>
+            <Text style={{ color: appTheme.colors.text }}>
+              {user?.name?.[0] || 'A'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -122,103 +152,75 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView
-        key={histories.length}
-        contentContainerStyle={{ flexGrow: 1, paddingVertical: 20 }}
+      {/* ===== List ===== */}
+      <FlatList
+        data={histories}
+        renderItem={renderStoryItem}
+        removeClippedSubviews
+        maxToRenderPerBatch={5}
+        windowSize={7}
+        initialNumToRender={5}
+        keyExtractor={item => String(item.id)}
+        contentContainerStyle={{
+          paddingVertical: 20,
+          alignItems: 'center',
+        }}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        onRefresh={() => fetchHistories(1)}
+        refreshing={loading}
+        ListFooterComponent={
+          isMoreLoading ? (
+            <ActivityIndicator size="small" style={{ margin: 20 }} />
+          ) : null
+        }
+      />
+
+      {/* ===== Очистка стейта ===== */}
+      <TouchableOpacity
+        style={[
+          styles.button,
+          {
+            backgroundColor: '#dc3545',
+            marginVertical: 20,
+            width: width * 0.9,
+            alignSelf: 'center',
+          },
+        ]}
+        onPress={handleLogout}
       >
-        {/* Вертикальный список обычных историй */}
-        <View style={styles.storyScroll}>
-          {histories
-            .filter(story => story)
-            .map(story => (
-              <Pressable
-                key={story.id}
-                style={[styles.storyCard]}
-                onPress={() => navigation.navigate('StoryScreen', { story })}
-              >
-                <ImageBackground
-                  source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
-                  style={styles.storyImage}
-                  imageStyle={{ borderRadius: 16 }}
-                >
-                  <TouchableOpacity
-                    onPress={() => handleLike(story)}
-                    disabled={!user || pendingLikes.has(story.id)}
-                    style={[
-                      styles.likeButton,
-                      {
-                        opacity: !user || pendingLikes.has(story.id) ? 0.5 : 1,
-                      },
-                    ]}
-                  >
-                    {pendingLikes.has(story.id) ? (
-                      <ActivityIndicator size="small" />
-                    ) : (
-                      <Text style={{ fontSize: 20 }}>
-                        {story.likedByCurrentUser ? '❤️' : '🤍'}
-                      </Text>
-                    )}
-                    <Text style={{ marginLeft: 4, color: '#fff' }}>
-                      {story.likesCount || 0}
-                    </Text>
-                  </TouchableOpacity>
-                  <View style={styles.levelBadge}>
-                    <Text style={styles.levelText}>{story.languageLevel}</Text>
-                  </View>
-                  <View style={styles.overlay} />
-                  <View style={styles.storyContainerText}>
-                    <Text
-                      style={styles.storyTextTitle}
-                      numberOfLines={3}
-                      ellipsizeMode="tail"
-                    >
-                      {story.title.ru}
-                    </Text>
-                    <Text
-                      style={styles.storyTextDescription}
-                      numberOfLines={3}
-                      ellipsizeMode="tail"
-                    >
-                      {story.description}
-                    </Text>
-                  </View>
-                </ImageBackground>
-              </Pressable>
-            ))}
-        </View>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: '#dc3545', marginLeft: 8 }]}
-          onPress={handleLogout}
-        >
-          <Text style={styles.buttonText}>Очистить стейт</Text>
-        </TouchableOpacity>
-      </ScrollView>
-      {/* Кнопка WordTraining */}
-      {user ? (
+        <Text style={styles.buttonText}>Очистить стейт</Text>
+      </TouchableOpacity>
+
+      {/* ===== Word training ===== */}
+      {user && (
         <TouchableOpacity
           style={styles.showButton}
           onPress={() =>
-            navigation.navigate('WordTraining', { userId: user?.id })
+            navigation.navigate('WordTraining', {
+              userId: user.id,
+            })
           }
         >
           <Text style={styles.showButtonText}>📚 Тренировка слов</Text>
         </TouchableOpacity>
-      ) : (
-        <></>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    paddingHorizontal: 16,
   },
-  title: { fontSize: 18 },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
   avatar: {
     width: 44,
     height: 44,
@@ -230,92 +232,29 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     padding: 10,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   button: {
-    backgroundColor: '#007bff',
     padding: 10,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-
-  storyScroll: { alignItems: 'center' },
-  storyCard: {
-    width: width * 0.9,
-    aspectRatio: 0.8,
-    borderRadius: 19,
-    marginBottom: 30,
-  },
-
-  storyImage: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  storyContainerText: {
-    margin: 20,
-    padding: 10,
-    backgroundColor: '#383434d2',
-    borderRadius: 15,
-  },
-  storyTextTitle: {
-    color: '#bbbbbb',
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 10,
-  },
-  storyTextDescription: { color: '#bbbbbb', fontSize: 14, fontWeight: '300' },
-
-  levelBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: '#ffda0bff',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-
-  likeButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-
-  levelText: {
-    color: '#000',
+  buttonText: {
+    color: '#fff',
     fontWeight: 'bold',
-    fontSize: 14,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 16,
+    fontSize: 16,
   },
   showButton: {
     paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 14,
     borderRadius: 14,
-    backgroundColor: '#424242ff',
+    backgroundColor: '#424242',
     alignSelf: 'center',
-    marginTop: 16,
+    marginBottom: 20,
   },
-
   showButtonText: {
     color: '#bbbbbb',
     fontSize: 16,
     fontWeight: '600',
-    letterSpacing: 0.3,
   },
 });

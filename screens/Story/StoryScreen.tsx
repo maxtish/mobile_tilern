@@ -28,33 +28,71 @@ import {
   activateKeepAwake,
   deactivateKeepAwake,
 } from '@sayem314/react-native-keep-awake';
+import { getStoryById } from '../../api/getStoryById';
+import { cacheStory, getCachedStory } from '../../utils/cache/storyCache';
 
-// Получаем ширину экрана для адаптивных размеров
 const { width } = Dimensions.get('window');
-// Смещение времени для синхронизации подсветки слов
 const SYNC_OFFSET = 0;
 
 interface StoryScreenProps {
-  route: { params: { story: History } }; // Передаем историю через параметры маршрута
-  navigation: any; // Для навигации
+  route: { params: { storyId: string } };
+  navigation: any;
 }
 
 export default function StoryScreen({ route, navigation }: StoryScreenProps) {
-  const user = useUserStore(state => state.user); // Получаем текущего пользователя из стора
-  const { isDark, appTheme } = useAppTheme(); // Тема приложения
-  const { story } = route.params; // История из параметров
+  const user = useUserStore(state => state.user);
+  const { isDark, appTheme } = useAppTheme();
+  const { storyId } = route.params;
 
   // -------------------- Состояния --------------------
-  const [activeIndex, setActiveIndex] = useState<number | null>(null); // Индекс текущего слова для подсветки
-  const [showSentenceTranslation, setShowSentenceTranslation] = useState(false); // Флаг показа перевода предложений
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null); ///Чтобы подсвечивался только кликнутый экземпляр
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [showSentenceTranslation, setShowSentenceTranslation] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const scrollViewRef = React.useRef<ScrollView | null>(null);
   const wordLayouts = React.useRef<{
     [key: number]: { y: number; height: number };
   }>({});
   const [activeArticleColors, setActiveArticleColors] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [story, setStory] = useState<History | null>(null);
+  const [isStoryLoading, setIsStoryLoading] = useState(true);
+  const [storyError, setStoryError] = useState<string | null>(null);
   const { addWord } = useAddWord(story, selectedIndex);
-  const [playbackRate, setPlaybackRate] = useState(1); // по умолчанию 1x
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStory = async () => {
+      try {
+        setIsStoryLoading(true);
+
+        const cached = await getCachedStory(storyId);
+        if (cached && isMounted) {
+          setStory(cached);
+          return;
+        }
+
+        const freshStory = await getStoryById(storyId);
+        if (isMounted) {
+          setStory(freshStory);
+        }
+      } catch (e) {
+        if (isMounted) {
+          setStoryError('Не удалось загрузить историю');
+        }
+      } finally {
+        if (isMounted) {
+          setIsStoryLoading(false);
+        }
+      }
+    };
+
+    loadStory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [storyId]);
 
   // -------------------- Подсветка и автоскролл --------------------
   useEffect(() => {
@@ -72,7 +110,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     wordLayouts.current = {}; // сброс
   }, [showSentenceTranslation]);
 
-  // -------------------- Работа с аудио --------------------
+  // -------------------- Аудио --------------------
   const {
     sound,
     isPlaying,
@@ -82,11 +120,11 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     setIsPlaying,
     isLooping,
     setIsLooping,
-  } = useAudio(story.id, story.audioUrl);
+  } = useAudio(story?.id || null, story?.audioUrl || null);
 
   // -------------------- Синхронизация слов --------------------
   const startSync = () => {
-    if (!sound) return;
+    if (!sound || !story || !Array.isArray(story.tokenTiming)) return;
     timerRef.current = setInterval(() => {
       sound.getCurrentTime(seconds => {
         const adjustedTime = seconds + SYNC_OFFSET;
@@ -175,16 +213,36 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const { selectedWord, translation, baseFormText, handleWordPress } =
     useWordPress(story);
 
+  if (isStoryLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!story) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>{storyError ?? 'История не найдена'}</Text>
+      </View>
+    );
+  }
+
   // -------------------- Основной рендер --------------------
   return (
-    <View style={[styles.container]}>
-      {/* Изображение истории */}
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: appTheme.colors.background },
+      ]}
+    >
       <View>
         <Image
           source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
           style={[
             styles.image,
-            isDark ? styles.imageWrapperIsDark : styles.imageWrapper, // ← ДОБАВИТЬ ТУТ
+            isDark ? styles.imageWrapperIsDark : styles.imageWrapper,
           ]}
           resizeMode="cover"
         />
@@ -212,23 +270,15 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
                     onPress: async () => {
                       try {
                         await deleteHistory(story.id);
-
                         Toast.show({
                           type: 'success',
                           text1: 'История удалена',
-                          position: 'top',
-                          topOffset: 0,
-                          visibilityTime: 2000,
                         });
-
                         navigation.goBack();
                       } catch (err: any) {
                         Toast.show({
-                          type: 'success',
+                          type: 'error',
                           text1: 'Ошибка удаления',
-                          position: 'top',
-                          topOffset: 0,
-                          visibilityTime: 2000,
                         });
                       }
                     },
@@ -241,7 +291,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           </TouchableOpacity>
         )}
 
-        {/* Перевод выбранного слова */}
         {translation && (
           <View style={styles.translationOverlay}>
             <Text style={styles.translationText}>
@@ -262,6 +311,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           </View>
         )}
       </View>
+
       <View
         style={{
           flexDirection: 'row',
@@ -272,12 +322,8 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           marginVertical: 8,
         }}
       >
-        {/* Кнопка воспроизведения аудио */}
         <TouchableOpacity
-          style={[
-            styles.playButton,
-            { backgroundColor: isLoading ? '#424242ff' : '#424242ff' },
-          ]}
+          style={[styles.playButton, { backgroundColor: '#424242ff' }]}
           onPress={handlePlayPress}
           disabled={isLoading}
         >
@@ -291,6 +337,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             />
           )}
         </TouchableOpacity>
+
         <View
           style={{
             flexDirection: 'row',
@@ -315,6 +362,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             </TouchableOpacity>
           ))}
         </View>
+
         <TouchableOpacity
           style={[
             styles.playButton,
@@ -364,7 +412,6 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           </View>
         </TouchableOpacity>
 
-        {/* Кнопка показа/скрытия перевода предложений  */}
         <TouchableOpacity
           style={styles.showButton}
           onPress={() => setShowSentenceTranslation(!showSentenceTranslation)}
@@ -374,21 +421,22 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           </Text>
         </TouchableOpacity>
       </View>
+
       <View style={{ flex: 1 }}>
         <ScrollView
           ref={scrollViewRef}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {/* Заголовок и уровень истории */}
           <View style={styles.header}>
             <Text
-              style={[styles.title, { color: appTheme.colors.textHistory }]}
+              style={[
+                styles.title,
+                { color: appTheme.colors.textHistory, paddingHorizontal: 16 },
+              ]}
             >
               {story.title.de}
             </Text>
           </View>
-
-          {/* Основной текст истории */}
 
           <TextWithTouch
             showSentenceTranslation={showSentenceTranslation}
@@ -408,9 +456,9 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             }}
           />
         </ScrollView>
-        {/* Кнопка WordTraining */}
-        {user ? (
-          <>
+
+        {user && (
+          <View style={{ paddingBottom: 10 }}>
             <TouchableOpacity
               style={styles.showButton}
               onPress={() =>
@@ -427,9 +475,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
             >
               <Text style={styles.showButtonText}>📚 Грамматика</Text>
             </TouchableOpacity>
-          </>
-        ) : (
-          <></>
+          </View>
         )}
       </View>
     </View>
@@ -464,7 +510,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 19,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)', // полупрозрачный, мягкий
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -472,7 +518,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: '50%',
-    marginLeft: -18, // половина ширины контейнера 36px
+    marginLeft: -18,
     width: 36,
     height: 36,
     borderRadius: 19,
@@ -480,7 +526,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   levelBadge: {
     position: 'absolute',
     top: 12,
@@ -492,7 +537,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   translationText: {
     color: '#bbbbbb',
     fontSize: 16,
@@ -501,16 +545,13 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   title: { fontSize: 22, fontWeight: 'bold', flex: 1 },
-
   levelText: { color: '#000', fontWeight: 'bold' },
-
   playButton: {
     padding: 8,
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   addWordButton: {
     backgroundColor: '#157002ff',
     paddingVertical: 4,
@@ -518,7 +559,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 8,
   },
-
   showButtonArticle: {
     marginTop: 16,
     flexDirection: 'row',
@@ -527,19 +567,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: 14,
-    backgroundColor: '#424242ff', // тёмный бархатный
+    backgroundColor: '#424242ff',
   },
-
   articlesRow: {
     flexDirection: 'row',
   },
-
   articleText: {
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
-
   showButton: {
     paddingVertical: 8,
     paddingHorizontal: 8,
@@ -548,7 +585,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginTop: 16,
   },
-
   showButtonText: {
     color: '#bbbbbb',
     fontSize: 16,

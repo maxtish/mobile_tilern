@@ -3,7 +3,7 @@ import { History, SentenceGrammar } from '../types/storiesTypes';
 // app/navigation/types.ts
 export type RootStackParamList = {
   Home: undefined;
-  StoryScreen: { story: History };
+  StoryScreen: { storyId: string };
   Auth: undefined;
   AddStory: undefined;
   WordTraining: { userId: string | undefined };

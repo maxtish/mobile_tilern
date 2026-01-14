@@ -3,7 +3,7 @@ import { saveUserWord } from '../api/userWords';
 import { History, Word } from '../types/storiesTypes';
 import Toast from 'react-native-toast-message';
 
-export const useAddWord = (story: History, indexW: number | null) => {
+export const useAddWord = (story: History | null, indexW: number | null) => {
   const user = useUserStore(state => state.user);
 
   const showToast = (type: 'success' | 'info' | 'error', text: string) => {
@@ -17,16 +17,30 @@ export const useAddWord = (story: History, indexW: number | null) => {
   };
 
   const addWord = async (wordText: string) => {
+    // 1️⃣ пользователь
     if (!user) {
       showToast('info', 'Войдите, чтобы сохранять слова');
       return;
     }
 
-    let foundWord: Word | undefined;
-
-    if (indexW !== null && story.words.length === story.tokenTiming.length) {
-      foundWord = story.words[indexW];
+    // 2️⃣ история ещё не загружена или слово не выбрано
+    if (!story || indexW === null) {
+      showToast('error', 'Слово не выбрано');
+      return;
     }
+
+    // 3️⃣ валидация данных истории
+    if (
+      !Array.isArray(story.words) ||
+      !Array.isArray(story.tokenTiming) ||
+      story.words.length !== story.tokenTiming.length
+    ) {
+      showToast('error', 'Ошибка данных истории');
+      return;
+    }
+
+    // 4️⃣ достаём слово
+    const foundWord: Word | undefined = story.words[indexW];
 
     if (!foundWord) {
       showToast('error', 'Слово не найдено в истории');
