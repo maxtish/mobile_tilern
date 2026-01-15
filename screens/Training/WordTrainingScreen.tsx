@@ -8,15 +8,15 @@ import {
   TextInput,
   StyleSheet,
 } from 'react-native';
-import { getUserWords } from '../../api/userWords';
-import { Word } from '../../types/storiesTypes';
+import { TrainingWord, Word } from '../../types/storiesTypes';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useTrainingStore } from '../../state/userStore';
-import { TrainingWord } from '../../types/userWord';
+
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { colorsArticle } from '../../constants/constants';
+import { getUserWordsRepository } from '../../utils/cache/userWordsRepository';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordTraining'>;
 
@@ -28,10 +28,8 @@ type AddStoryScreenNavigationProp = NavigationProp<
 export default function TrainingScreen({ route }: Props) {
   const { appTheme } = useAppTheme();
   const { userId } = route.params;
-
   const { words, setWords, markCorrect, markFailed } = useTrainingStore();
   const navigation = useNavigation<AddStoryScreenNavigationProp>();
-
   const [loading, setLoading] = useState(true);
   const [currentWord, setCurrentWord] = useState<TrainingWord | null>(null);
   const [round, setRound] = useState(1); // 1 или 2
@@ -51,7 +49,7 @@ export default function TrainingScreen({ route }: Props) {
   useEffect(() => {
     (async () => {
       if (!userId) return;
-      const data = await getUserWords(userId);
+      const data = await getUserWordsRepository(userId);
       const trainingWords: TrainingWord[] = data.map(
         (w: { word: Word; id: string }) => ({
           word: w.word,

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { persist, PersistStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserState } from '../types/userTypes';
-import { TrainingState, TrainingWord } from '../types/userWord';
+import { TrainingState, TrainingWord } from '../types/storiesTypes';
 
 const asyncStorageUserState: PersistStorage<UserState> = {
   getItem: async (name: string) => {

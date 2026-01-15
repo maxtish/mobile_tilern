@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, FlatList } from 'react-native';
+import { Animated } from 'react-native';
 
 import {
   View,
@@ -10,9 +10,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { useUserStore } from '../../state/userStore';
-import { UserWord } from '../../types/userWord';
-import { getUserWords } from '../../api/userWords';
 import { createDeckFromUserWords } from '../../utils/createDeckFromUserWords';
+import { getUserWordsRepository } from '../../utils/cache/userWordsRepository';
 
 const NUM_COLUMNS = 3;
 const GAP = 5;
@@ -37,7 +36,7 @@ export default function GameMemoryScreen() {
   const loadWords = async () => {
     try {
       if (!user) return;
-      const userWords: UserWord[] = await getUserWords(user.id);
+      const userWords = await getUserWordsRepository(user.id);
       const deck = createDeckFromUserWords(userWords);
       setDeck(deck);
     } catch (error) {

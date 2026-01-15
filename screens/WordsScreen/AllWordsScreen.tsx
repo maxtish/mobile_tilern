@@ -9,25 +9,27 @@ import {
 } from 'react-native';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { useUserStore } from '../../state/userStore';
-import { TrainingWord } from '../../types/userWord';
-import { deleteUserWord, getUserWords } from '../../api/userWords';
+import { deleteUserWord } from '../../api/userWords';
+import { UserWord } from '../../types/storiesTypes';
+import { getUserWordsRepository } from '../../utils/cache/userWordsRepository';
 
 export default function AllWordsScreen() {
   const { navTheme } = useAppTheme();
   const { user } = useUserStore();
-  const [words, setWords] = useState<TrainingWord[]>([]);
+  const [words, setWords] = useState<UserWord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchWords = async () => {
     if (!user) return;
     setLoading(true);
-    const res = await getUserWords(user.id);
+    const res = await getUserWordsRepository(user.id);
     setWords(res);
     setLoading(false);
   };
 
   const handleDelete = async (id: string) => {
-    const success = await deleteUserWord(id);
+    if (!user) return;
+    const success = await deleteUserWord(user.id, id);
     if (success) {
       setWords(words.filter(w => w.id !== id));
     } else {
@@ -68,7 +70,8 @@ export default function AllWordsScreen() {
               <Text style={{ fontWeight: 'bold', color: '#007bff' }}>
                 {article}{' '}
               </Text>
-              {word.word.baseForm} — {word.word.translation}
+              {word.word.baseForm ? word.word.baseForm : word.word.word} —{' '}
+              {word.word.translation}
             </Text>
             <TouchableOpacity
               style={styles.deleteButton}

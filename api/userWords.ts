@@ -1,4 +1,8 @@
-import { Word } from '../types/storiesTypes';
+import { TrainingWord, UserWord, Word } from '../types/storiesTypes';
+import {
+  updateCacheAfterAdd,
+  updateCacheAfterDelete,
+} from '../utils/cache/userWordsCache';
 import { apiFetch } from './apiFetch';
 
 export const saveUserWord = async (
@@ -20,18 +24,24 @@ export const saveUserWord = async (
     throw new Error(data.error || `Ошибка ${res.status}`);
   }
 
-  return res.json();
-};
+  const saved = await res.json();
+  await updateCacheAfterAdd(userId, saved);
 
-export const getUserWords = async (userId: string) => {
+  return saved;
+};
+export const getUserWords = async (userId: string): Promise<UserWord[]> => {
   const res = await apiFetch(`/user/words/${userId}`, { method: 'GET' }, true);
   if (!res.ok) throw new Error(`Ошибка ${res.status}`);
   const data = await res.json();
   return Array.isArray(data.words) ? data.words : [];
 };
 
-export const deleteUserWord = async (id: string) => {
+export const deleteUserWord = async (userId: string, id: string) => {
   const res = await apiFetch(`/user-words/${id}`, { method: 'DELETE' }, true);
   const data = await res.json();
+  if (data.success) {
+    await updateCacheAfterDelete(userId, id);
+  }
+
   return data.success === true;
 };

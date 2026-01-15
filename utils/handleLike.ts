@@ -30,7 +30,10 @@ export const handleLikeOutside = async ({
         ? {
             ...s,
             likedByCurrentUser: !alreadyLiked,
-            likesCount: Math.max(0, s.likesCount + (alreadyLiked ? -1 : 1)),
+            likesCount: Math.max(
+              0,
+              (s.likesCount ?? 0) + (alreadyLiked ? -1 : 1),
+            ),
           }
         : s,
     ),
@@ -71,7 +74,10 @@ export const handleLikeOutside = async ({
           ? {
               ...s,
               likedByCurrentUser: alreadyLiked,
-              likesCount: Math.max(0, s.likesCount + (alreadyLiked ? 1 : -1)),
+              likesCount: Math.max(
+                0,
+                (s.likesCount ?? 0) + (alreadyLiked ? 1 : -1),
+              ),
             }
           : s,
       ),
