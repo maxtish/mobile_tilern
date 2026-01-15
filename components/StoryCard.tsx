@@ -14,6 +14,7 @@ import RNFS from 'react-native-fs';
 import { SERVER_URL } from '../constants/constants';
 import { History } from '../types/storiesTypes';
 import { isAudioCached } from '../utils/cache/audioCache';
+import { useCachedImage } from '../hooks/useImage';
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +29,7 @@ interface StoryCardProps {
 export const StoryCard = React.memo(
   ({ story, onPress, onLike, isLikePending, user }: StoryCardProps) => {
     const [isDownloaded, setIsDownloaded] = useState(false);
+    const imageUri = useCachedImage(story.id, story.imageUrl);
 
     useEffect(() => {
       let active = true;
@@ -48,7 +50,7 @@ export const StoryCard = React.memo(
     return (
       <Pressable style={styles.storyCard} onPress={() => onPress(story)}>
         <Image
-          source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
+          source={imageUri ? { uri: imageUri } : undefined}
           style={styles.storyImage}
           resizeMode="cover"
         />

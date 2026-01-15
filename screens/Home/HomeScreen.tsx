@@ -11,7 +11,7 @@ import {
 
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
+import NetInfo from '@react-native-community/netinfo';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { RootStackParamList } from '../../navigation/types';
 import { useUserStore } from '../../state/userStore';
@@ -20,7 +20,9 @@ import { History } from '../../types/storiesTypes';
 import { logoutAndClear } from '../../utils/logoutAndClear';
 import { handleLikeOutside } from '../../utils/handleLike';
 import { StoryCard } from '../../components/StoryCard';
-import { cacheStory } from '../../utils/cache/storyCache';
+
+import { getStoriesRepository } from '../../utils/cache/repository';
+import { cacheStoryAssets } from '../../utils/cache/getMediaRepository';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 const { width } = Dimensions.get('window');
@@ -29,7 +31,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { appTheme, toggleTheme } = useAppTheme();
   const user = useUserStore(state => state.user);
-
+  const [isOnline, setIsOnline] = useState(true);
   const [histories, setHistories] = useState<History[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,22 +41,39 @@ export default function HomeScreen() {
   const [isMoreLoading, setIsMoreLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(Boolean(state.isConnected && state.isInternetReachable));
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // ===== Загрузка историй =====
   const fetchHistories = async (pageNum = 1) => {
+    if (!isOnline && pageNum > 1) return;
     if (isMoreLoading) return;
 
     try {
       pageNum === 1 ? setLoading(true) : setIsMoreLoading(true);
 
-      const data = await getHistories(user, pageNum, 10);
+      const data = await getStoriesRepository(user, pageNum, 10);
 
       if (data.length < 10) setHasMore(false);
 
       setHistories(prev => (pageNum === 1 ? data : [...prev, ...data]));
-
       setPage(pageNum);
+
+      // 🔥 ВАЖНО: кэшируем ассеты В ФОНЕ
+      if (isOnline) {
+        data.forEach(story => {
+          cacheStoryAssets(story).catch(() => {});
+        });
+      }
     } catch (err: any) {
-      setError(err.message || 'Ошибка загрузки');
+      if (isOnline) {
+        setError(err.message || 'Ошибка загрузки');
+      }
     } finally {
       setLoading(false);
       setIsMoreLoading(false);
@@ -65,12 +84,12 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchHistories(1);
-    }, [user]),
+    }, [user, isOnline]),
   );
 
   // ===== Пагинация =====
   const loadMore = () => {
-    if (!isMoreLoading && hasMore) {
+    if (!isMoreLoading && hasMore && isOnline) {
       fetchHistories(page + 1);
     }
   };
@@ -99,7 +118,6 @@ export default function HomeScreen() {
         user={user}
         isLikePending={pendingLikes.has(item.id)}
         onPress={async story => {
-          cacheStory(story).catch(() => {});
           navigation.navigate('StoryScreen', { storyId: String(story.id) });
         }}
         onLike={handleLike}
@@ -204,6 +222,13 @@ export default function HomeScreen() {
         >
           <Text style={styles.showButtonText}>📚 Тренировка слов</Text>
         </TouchableOpacity>
+      )}
+      {!isOnline && (
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
+          <Text style={{ color: '#ff9800', fontSize: 12 }}>
+            📡 Нет интернета — показан офлайн-кэш
+          </Text>
+        </View>
       )}
     </View>
   );

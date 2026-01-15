@@ -29,7 +29,9 @@ import {
   deactivateKeepAwake,
 } from '@sayem314/react-native-keep-awake';
 import { getStoryById } from '../../api/getStoryById';
-import { cacheStory, getCachedStory } from '../../utils/cache/storyCache';
+
+import { useCachedImage } from '../../hooks/useImage';
+import { getCachedStoryById } from '../../utils/cache/storyListCache';
 
 const { width } = Dimensions.get('window');
 const SYNC_OFFSET = 0;
@@ -66,13 +68,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       try {
         setIsStoryLoading(true);
 
-        const cached = await getCachedStory(storyId);
+        const cached = await getCachedStoryById(storyId);
         if (cached && isMounted) {
           setStory(cached);
           return;
         }
 
         const freshStory = await getStoryById(storyId);
+
         if (isMounted) {
           setStory(freshStory);
         }
@@ -121,6 +124,9 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     isLooping,
     setIsLooping,
   } = useAudio(story?.id || null, story?.audioUrl || null);
+
+  ///с картинками и офлайном
+  const imageUri = useCachedImage(story?.id ?? '', story?.imageUrl ?? '');
 
   // -------------------- Синхронизация слов --------------------
   const startSync = () => {
@@ -239,7 +245,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     >
       <View>
         <Image
-          source={{ uri: `${SERVER_URL}${story.imageUrl}` }}
+          source={imageUri ? { uri: imageUri } : undefined}
           style={[
             styles.image,
             isDark ? styles.imageWrapperIsDark : styles.imageWrapper,
