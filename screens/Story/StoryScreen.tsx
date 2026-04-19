@@ -159,6 +159,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       stopSync();
       setIsPlaying(false);
     } else {
+      sound.setSpeed(playbackRate);
       play(() => {
         stopSync();
         setActiveIndex(null);
@@ -180,7 +181,14 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
     setPlaybackRate(rate);
 
     if (sound) {
-      sound.setSpeed(rate); // ✅ БЕЗ ошибок TS
+      // Устанавливаем скорость
+      sound.setSpeed(rate);
+
+      // Если плеер в состоянии паузы, блокируем авто-старт
+      if (!isPlaying) {
+        sound.pause();
+        stopSync();
+      }
     }
   };
 
