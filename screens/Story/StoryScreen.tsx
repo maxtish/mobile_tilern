@@ -269,7 +269,8 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
         <View style={styles.levelBadge}>
           <Text style={styles.levelText}>{story.languageLevel}</Text>
         </View>
-        {user?.role === 'ADMIN' && (
+        {(user?.role === 'ADMIN' ||
+          (user?.id && story.authorId === user.id)) && (
           <TouchableOpacity
             style={styles.deleteIcon}
             onPress={() => {
