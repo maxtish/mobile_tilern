@@ -32,6 +32,7 @@ import { getStoryById } from '../../api/getStoryById';
 
 import { useCachedImage } from '../../hooks/useImage';
 import { getCachedStoryById } from '../../utils/cache/storyListCache';
+import { speakText } from '../../utils/speakText';
 
 const { width } = Dimensions.get('window');
 const SYNC_OFFSET = 0;
@@ -191,6 +192,11 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       }
     }
   };
+  // -------------------- Загрузка слова --------------------
+  const handleSpeakWord = (word: string) => {
+    const cleanWord: string = word.replace(/[.,!?;:]/g, '');
+    speakText(cleanWord, playbackRate);
+  };
 
   // -------------------- приложение ушло в фон или свернуто → ставим паузу--------------------
 
@@ -316,12 +322,33 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
                 : `${selectedWord} - ${translation}`}
             </Text>
             {user && selectedWord && (
-              <TouchableOpacity
-                style={styles.addWordButton}
-                onPress={() => selectedWord && addWord(selectedWord)}
-              >
-                <Text style={{ color: appTheme.colors.text }}>+</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {/* Кнопка Озвучки */}
+                <TouchableOpacity
+                  style={styles.addWordButton}
+                  onPress={() => {
+                    handleSpeakWord(selectedWord);
+                  }}
+                >
+                  <Ionicons
+                    name="volume-medium-outline"
+                    size={18}
+                    color={appTheme.colors.text}
+                  />
+                </TouchableOpacity>
+
+                {/* Кнопка Добавления */}
+                <TouchableOpacity
+                  style={styles.addWordButton}
+                  onPress={() => selectedWord && addWord(selectedWord)}
+                >
+                  <Ionicons
+                    name="add-outline"
+                    size={22}
+                    color={appTheme.colors.text}
+                  />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
@@ -569,10 +596,11 @@ const styles = StyleSheet.create({
   },
   addWordButton: {
     backgroundColor: '#157002ff',
-    paddingVertical: 4,
-    paddingHorizontal: 16,
+    width: 44,
+    height: 40,
     borderRadius: 10,
-    marginTop: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   showButtonArticle: {
     marginTop: 16,
