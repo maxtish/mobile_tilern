@@ -1,4 +1,4 @@
-import { TrainingWord, UserWord, Word } from '../types/storiesTypes';
+import { UserWord, Word } from '../types/storiesTypes';
 import {
   updateCacheAfterAdd,
   updateCacheAfterDelete,
