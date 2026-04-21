@@ -1,9 +1,12 @@
-import { SERVER_URL } from '../constants/constants';
+import { User } from '../types/userTypes';
 import { History } from '../types/storiesTypes';
 import { apiFetch } from './apiFetch';
 
-export const getStoryById = async (id: string): Promise<History> => {
-  const res = await apiFetch(`/history/${id}`, { method: 'GET' }, false);
+export const getStoryById = async (
+  id: string,
+  user: User | null,
+): Promise<History> => {
+  const res = await apiFetch(`/history/${id}`, { method: 'GET' }, !!user);
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

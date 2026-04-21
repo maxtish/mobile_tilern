@@ -75,7 +75,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
           return;
         }
 
-        const freshStory = await getStoryById(storyId);
+        const freshStory = await getStoryById(storyId, user);
 
         if (isMounted) {
           setStory(freshStory);
