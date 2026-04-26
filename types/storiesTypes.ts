@@ -191,3 +191,22 @@ const frontendHistories: History[] = dbHistories.map(mapDBToHistory);
 
 
 */
+
+export type TrainingWord = {
+  word: Word;
+  id: string;
+  passedCorrectly: boolean;
+  failed: boolean;
+};
+
+export interface TrainingState {
+  words: TrainingWord[];
+  setWords: (words: TrainingWord[]) => void;
+  markCorrect: (id: string) => void;
+  markFailed: (id: string) => void;
+  reset: () => void;
+}
+
+export interface TrainingStateStorage {
+  words: TrainingWord[];
+}

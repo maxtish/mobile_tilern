@@ -60,7 +60,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const [story, setStory] = useState<History | null>(null);
   const [isStoryLoading, setIsStoryLoading] = useState(true);
   const [storyError, setStoryError] = useState<string | null>(null);
-  const { addWord } = useAddWord(story, selectedIndex);
+  const { addWord } = useAddWord();
 
   useEffect(() => {
     let isMounted = true;
@@ -69,20 +69,31 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
       try {
         setIsStoryLoading(true);
 
+        // 1. Пытаемся взять из кэша мгновенно
         const cached = await getCachedStoryById(storyId);
         if (cached && isMounted) {
           setStory(cached);
-          return;
+          // Если кэш есть, мы можем сразу выключить лоадер,
+          // чтобы пользователь начал читать
+          setIsStoryLoading(false);
         }
 
+        // 2. В фоне (или если кэша нет) идем на сервер за свежей версией
         const freshStory = await getStoryById(storyId, user);
 
         if (isMounted) {
           setStory(freshStory);
+          setStoryError(null); // Сбрасываем ошибку, если она была
         }
-      } catch (e) {
+      } catch (e: any) {
         if (isMounted) {
-          setStoryError('Не удалось загрузить историю');
+          // Если сервер не ответил (таймаут), но у нас ЕСТЬ кэш — не показываем ошибку
+          if (story) {
+            console.log('Работаем в офлайне, сервер недоступен');
+          } else {
+            // Если кэша нет И сервер упал — тогда показываем ошибку
+            setStoryError('История недоступна без интернета');
+          }
         }
       } finally {
         if (isMounted) {
@@ -233,6 +244,13 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
   const { selectedWord, translation, baseFormText, handleWordPress } =
     useWordPress(story);
 
+  const onAddWordPress = async () => {
+    if (selectedIndex !== null && story) {
+      // Используем наш новый универсальный хук
+      await addWord(undefined, story, selectedIndex);
+    }
+  };
+
   if (isStoryLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -340,7 +358,7 @@ export default function StoryScreen({ route, navigation }: StoryScreenProps) {
                 {/* Кнопка Добавления */}
                 <TouchableOpacity
                   style={styles.addWordButton}
-                  onPress={() => selectedWord && addWord(selectedWord)}
+                  onPress={() => selectedWord && onAddWordPress()}
                 >
                   <Ionicons
                     name="add-outline"

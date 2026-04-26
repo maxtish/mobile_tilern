@@ -51,12 +51,16 @@ export default function HomeScreen() {
 
   // ===== Загрузка историй =====
   const fetchHistories = async (pageNum = 1) => {
+    // Если мы в офлайне и это не первая страница — выходим
     if (!isOnline && pageNum > 1) return;
     if (isMoreLoading) return;
 
     try {
       pageNum === 1 ? setLoading(true) : setIsMoreLoading(true);
+      setError(''); // Сбрасываем старые ошибки
 
+      // Вызов репозитория. Если сервер "лежит" (таймаут 7с),
+      // apiFetch внутри выкинет ошибку, и мы упадем в catch
       const data = await getStoriesRepository(user, pageNum, 10);
 
       if (data.length < 10) setHasMore(false);
@@ -64,16 +68,27 @@ export default function HomeScreen() {
       setHistories(prev => (pageNum === 1 ? data : [...prev, ...data]));
       setPage(pageNum);
 
-      // 🔥 ВАЖНО: кэшируем ассеты В ФОНЕ
+      // Кэшируем медиа в фоне, только если есть реальный интернет
       if (isOnline) {
         data.forEach(story => {
           cacheStoryAssets(story).catch(() => {});
         });
       }
     } catch (err: any) {
-      if (isOnline) {
-        setError(err.message || 'Ошибка загрузки');
+      // КРИТИЧЕСКИЙ МОМЕНТ: Если сервер не ответил
+      if (pageNum === 1) {
+        console.log('Сервер не отвечает, пытаемся показать только кэш');
+
+        // Если ошибка произошла на первой странице,
+        // репозиторий мог уже вернуть часть кэша или выкинуть ошибку.
+        // Чтобы быть уверенным, что юзер увидит хоть что-то:
+        if (histories.length === 0) {
+          setError('Сервер временно недоступен. Показаны сохраненные данные.');
+        }
       }
+
+      // Если это пагинация (страница > 1) и сервер лег — просто перестаем грузить дальше
+      setHasMore(false);
     } finally {
       setLoading(false);
       setIsMoreLoading(false);
@@ -190,6 +205,19 @@ export default function HomeScreen() {
         ListFooterComponent={
           isMoreLoading ? (
             <ActivityIndicator size="small" style={{ margin: 20 }} />
+          ) : null
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text
+                style={{ color: appTheme.colors.text, textAlign: 'center' }}
+              >
+                {isOnline
+                  ? 'Историй пока нет или сервер недоступен.'
+                  : 'Нет сохраненных историй для чтения офлайн.'}
+              </Text>
+            </View>
           ) : null
         }
       />

@@ -1,9 +1,12 @@
 import { useUserStore } from '../state/userStore';
 import { saveUserWord } from '../api/userWords';
-import { History, Word } from '../types/storiesTypes';
+import { History, Word, UserWord } from '../types/storiesTypes';
 import Toast from 'react-native-toast-message';
+import NetInfo from '@react-native-community/netinfo';
+import { updateCacheAfterAdd } from '../utils/cache/userWordsCache';
+import { addToSyncQueue } from '../utils/syncQueue';
 
-export const useAddWord = (story: History | null, indexW: number | null) => {
+export const useAddWord = () => {
   const user = useUserStore(state => state.user);
 
   const showToast = (type: 'success' | 'info' | 'error', text: string) => {
@@ -11,54 +14,74 @@ export const useAddWord = (story: History | null, indexW: number | null) => {
       type,
       text1: text,
       position: 'top',
-      topOffset: 0,
-      visibilityTime: 3000,
+      visibilityTime: 2500,
     });
   };
 
-  const addWord = async (wordText: string) => {
-    // 1️⃣ пользователь
+  const addWord = async (
+    manualWord?: Word,
+    story: History | null = null,
+    indexW: number | null = null,
+  ) => {
     if (!user) {
       showToast('info', 'Войдите, чтобы сохранять слова');
       return;
     }
 
-    // 2️⃣ история ещё не загружена или слово не выбрано
-    if (!story || indexW === null) {
-      showToast('error', 'Слово не выбрано');
-      return;
+    let wordToSave: Word | undefined;
+    let storyId: string | null = null;
+
+    if (manualWord) {
+      wordToSave = manualWord;
+    } else if (story && indexW !== null) {
+      wordToSave = story.words[indexW];
+      storyId = story.id;
     }
 
-    // 3️⃣ валидация данных истории
-    if (
-      !Array.isArray(story.words) ||
-      !Array.isArray(story.tokenTiming) ||
-      story.words.length !== story.tokenTiming.length
-    ) {
-      showToast('error', 'Ошибка данных истории');
-      return;
-    }
+    if (!wordToSave) return;
 
-    // 4️⃣ достаём слово
-    const foundWord: Word | undefined = story.words[indexW];
+    // 1. Создаем оптимистичный объект (для мгновенного UI)
+    const optimisticWord: UserWord = {
+      id: Date.now().toString() + Math.random().toString(36).substring(7),
+      userId: user.id,
+      historyId: storyId,
+      word: wordToSave,
+      createdAt: new Date().toISOString(),
+    };
 
-    if (!foundWord) {
-      showToast('error', 'Слово не найдено в истории');
-      return;
-    }
+    // 2. Мгновенно обновляем локальный кэш
+    await updateCacheAfterAdd(user.id, optimisticWord);
 
     try {
-      const response = await saveUserWord(user.id, story.id, foundWord);
+      // 3. Пробуем отправить на сервер
+      // Если интернет есть, но сервер лежит или тормозит ( > 7 сек),
+      // apiFetch выбросит ошибку 'OFFLINE_MODE' или 'SERVER_ERROR'
+      const response = await saveUserWord(user.id, storyId, wordToSave);
 
       if (response?.success) {
-        showToast('success', '✅ Слово добавлено!');
+        showToast('success', '✅ Сохранено в облако');
       } else if (response?.message === 'Слово уже сохранено') {
-        showToast('info', 'ℹ️ Это слово уже в вашем списке');
-      } else {
-        showToast('error', 'Ошибка при сохранении слова');
+        showToast('info', 'Это слово уже есть в списке');
       }
-    } catch (error) {
-      showToast('error', 'Ошибка при сохранении слова');
+
+      return optimisticWord;
+    } catch (error: any) {
+      // 4. ОБРАБОТКА ОФЛАЙН ПЕРЕХОДА
+      // Если это сетевая ошибка, таймаут или 500-ка на сервере
+      const isOfflineStatus =
+        error.message === 'OFFLINE_MODE' ||
+        error.message === 'SERVER_ERROR' ||
+        error.message === 'Network request failed';
+
+      if (isOfflineStatus) {
+        await addToSyncQueue(user.id, wordToSave);
+        showToast('info', 'Сохранено локально (синхронизация позже) 📡');
+      } else {
+        // Другие ошибки (например, проблемы с авторизацией)
+        showToast('error', error.message || 'Ошибка сохранения');
+      }
+
+      return optimisticWord; // Всё равно возвращаем, так как локально сохранили
     }
   };
 

@@ -8,6 +8,8 @@ import {
   TextInput,
   StyleSheet,
 } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
+
 import { TrainingWord, Word } from '../../types/storiesTypes';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,6 +19,8 @@ import { useTrainingStore } from '../../state/userStore';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { colorsArticle } from '../../constants/constants';
 import { getUserWordsRepository } from '../../utils/cache/userWordsRepository';
+import { clearSyncQueue, getSyncQueue } from '../../utils/syncQueue';
+import { saveUserWord } from '../../api/userWords';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordTraining'>;
 
@@ -44,12 +48,18 @@ export default function TrainingScreen({ route }: Props) {
   const passedCount = words.filter(w => w.passedCorrectly).length;
 
   // -------------------------
-  // Загрузка слов с сервера
+  // ФУНКЦИЯ ЗАГРУЗКИ (Обновленная)
   // -------------------------
-  useEffect(() => {
-    (async () => {
-      if (!userId) return;
+  const fetchWords = async () => {
+    if (!userId) return;
+    setLoading(true);
+
+    try {
+      // Репозиторий уже умеет:
+      // 1. Сразу вернуть кэш
+      // 2. Если есть сеть - обновить его в фоне и вернуть свежее
       const data = await getUserWordsRepository(userId);
+
       const trainingWords: TrainingWord[] = data.map(
         (w: { word: Word; id: string }) => ({
           word: w.word,
@@ -58,19 +68,69 @@ export default function TrainingScreen({ route }: Props) {
           failed: false,
         }),
       );
+
       setWords(trainingWords);
 
       if (trainingWords.length > 0) {
         setCurrentWord(trainingWords[0]);
-        // Убираем первое слово из оставшихся для раунда 1
         setRound1WordsLeft(trainingWords.slice(1));
       } else {
         setRound1WordsLeft([]);
       }
-
+    } catch (err) {
+      console.error('Ошибка в TrainingScreen:', err);
+    } finally {
       setLoading(false);
-    })();
+    }
+  };
+
+  // -------------------------
+  // СИНХРОНИЗАЦИЯ (Обновленная)
+  // -------------------------
+  const syncOfflineWords = async () => {
+    const queue = await getSyncQueue();
+    if (queue.length === 0) return;
+
+    console.log('Синхронизация очереди:', queue.length);
+
+    let hasErrors = false;
+    for (const item of queue) {
+      try {
+        await saveUserWord(item.userId, null, item.word);
+      } catch (e) {
+        console.error('Сбой синхронизации слова:', e);
+        hasErrors = true;
+      }
+    }
+
+    // Очищаем очередь только если не было критических ошибок
+    // (или если бэкенд умеет обрабатывать дубликаты)
+    await clearSyncQueue();
+
+    // После синхронизации обновляем список слов, чтобы получить их реальные ID из БД
+    fetchWords();
+  };
+
+  // 1. Эффект для загрузки данных при входе
+  useEffect(() => {
+    fetchWords();
   }, [userId, reversed]);
+
+  // 2. Эффект для мониторинга сети и синхронизации
+  useEffect(() => {
+    // Сразу проверяем при входе, вдруг мы онлайн и очередь полна
+    NetInfo.fetch().then(state => {
+      if (state.isConnected) syncOfflineWords();
+    });
+
+    // Подписываемся на изменения сети
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        syncOfflineWords();
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // -------------------------
   // Автоматический переход на следующее слово после правильного ответа

@@ -2,66 +2,88 @@ import { useUserStore } from '../state/userStore';
 import { refreshToken } from './auth/refresh';
 import { SERVER_URL } from '../constants/constants';
 
+// По умолчанию ждем 7 секунд для обычных запросов
+const DEFAULT_TIMEOUT = 7000;
+
 export async function apiFetch(
-  endpoint: string, // путь к API, например "/history"
-  options: RequestInit = {}, // дополнительные параметры fetch: method, body, headers и т.д.
-  requireAuth = false, // если true — запрос требует авторизации
+  endpoint: string,
+  options: RequestInit = {},
+  requireAuth = false,
+  customTimeout?: number, // Параметр для долгих запросов (например, создание истории)
 ) {
-  // Берём состояние пользователя из zustand
   const store = useUserStore.getState();
   const token = store.token;
 
-  // Если запрос требует авторизации, но токена нет — выбрасываем ошибку
-  if (requireAuth && !token) throw new Error('Пользователь не авторизован');
+  // Настройка таймаута
+  const timeout = customTimeout || DEFAULT_TIMEOUT;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  // Базовые заголовки для fetch — JSON по умолчанию
+  if (requireAuth && !token) {
+    clearTimeout(timeoutId);
+    throw new Error('Пользователь не авторизован');
+  }
+
   const baseHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
-  // Преобразуем incoming headers из options в Record<string,string>
-  // Потому что TypeScript не знает, что headers точно Record<string,string>
   let incomingHeaders: Record<string, string> = {};
   if (options.headers instanceof Headers) {
-    // Если это объект Headers
     options.headers.forEach((value, key) => {
       incomingHeaders[key] = value;
     });
-  } else if (Array.isArray(options.headers)) {
-    // Если это массив кортежей [key, value]
-    options.headers.forEach(([key, value]) => {
-      incomingHeaders[key] = value;
-    });
   } else if (options.headers) {
-    // Если это уже Record<string,string>, приводим к нужному типу
     incomingHeaders = options.headers as Record<string, string>;
   }
 
-  // Собираем финальные заголовки: базовые + пользовательские + токен, если есть
   const headers: Record<string, string> = {
     ...baseHeaders,
     ...incomingHeaders,
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  // Делаем первый запрос на сервер
-  let res = await fetch(`${SERVER_URL}${endpoint}`, { ...options, headers });
+  try {
+    let res = await fetch(`${SERVER_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal, // Подключаем контроллер таймаута
+    });
 
-  // Если сервер вернул 401 (Unauthorized) и есть refreshToken — пробуем обновить токен
-  if (res.status === 401 && store.refreshToken) {
-    try {
-      // Получаем новый accessToken через refreshToken
-      const newToken = await refreshToken();
-      // Обновляем заголовки и повторяем запрос
-      headers.Authorization = `Bearer ${newToken}`;
-      res = await fetch(`${SERVER_URL}${endpoint}`, { ...options, headers });
-    } catch {
-      // Если обновить токен не удалось — разлогиниваем пользователя
-      store.logout();
-      throw new Error('Сессия истекла, пожалуйста, войдите снова');
+    clearTimeout(timeoutId); // Запрос успел — отменяем таймер
+
+    // 1. Если сервер вернул ошибку 500+ (сервер "упал")
+    if (res.status >= 500) {
+      throw new Error('SERVER_ERROR');
     }
-  }
 
-  // Возвращаем объект Response, чтобы вызывающий код мог дальше вызвать res.json() или res.text()
-  return res;
+    // 2. Обработка 401 и обновление токена
+    if (res.status === 401 && store.refreshToken) {
+      try {
+        const newToken = await refreshToken();
+        headers.Authorization = `Bearer ${newToken}`;
+        res = await fetch(`${SERVER_URL}${endpoint}`, { ...options, headers });
+      } catch {
+        store.logout();
+        throw new Error('Сессия истекла');
+      }
+    }
+
+    return res;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    // Если запрос был прерван по таймауту (AbortError)
+    if (error.name === 'AbortError') {
+      console.warn(`Запрос к ${endpoint} прерван по таймауту (${timeout}ms)`);
+      throw new Error('OFFLINE_MODE');
+    }
+
+    // Если нет интернета или Network Error
+    if (error.message === 'Network request failed') {
+      throw new Error('OFFLINE_MODE');
+    }
+
+    throw error;
+  }
 }
