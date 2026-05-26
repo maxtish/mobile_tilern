@@ -2,88 +2,152 @@ import { useUserStore } from '../state/userStore';
 import { refreshToken } from './auth/refresh';
 import { SERVER_URL } from '../constants/constants';
 
-// По умолчанию ждем 7 секунд для обычных запросов
 const DEFAULT_TIMEOUT = 7000;
 
 export async function apiFetch(
   endpoint: string,
   options: RequestInit = {},
   requireAuth = false,
-  customTimeout?: number, // Параметр для долгих запросов (например, создание истории)
+  customTimeout?: number,
 ) {
   const store = useUserStore.getState();
   const token = store.token;
 
-  // Настройка таймаута
-  const timeout = customTimeout || DEFAULT_TIMEOUT;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
+  /**
+   * Если запрос требует авторизацию,
+   * но access token отсутствует — это не offline,
+   * это значит пользователь не авторизован.
+   */
   if (requireAuth && !token) {
-    clearTimeout(timeoutId);
-    throw new Error('Пользователь не авторизован');
+    throw new Error('NO_AUTH');
   }
 
-  const baseHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  /**
+   * Внутренняя функция одного HTTP-запроса.
+   * Она ничего не знает про refresh token.
+   * Ее задача — просто сделать fetch и правильно классифицировать сетевые ошибки.
+   */
+  const makeRequest = async (authToken?: string) => {
+    const timeout = customTimeout || DEFAULT_TIMEOUT;
 
-  let incomingHeaders: Record<string, string> = {};
-  if (options.headers instanceof Headers) {
-    options.headers.forEach((value, key) => {
-      incomingHeaders[key] = value;
-    });
-  } else if (options.headers) {
-    incomingHeaders = options.headers as Record<string, string>;
-  }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  const headers: Record<string, string> = {
-    ...baseHeaders,
-    ...incomingHeaders,
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
+    const incomingHeaders =
+      options.headers instanceof Headers
+        ? Object.fromEntries(options.headers.entries())
+        : (options.headers as Record<string, string>) || {};
 
-  try {
-    let res = await fetch(`${SERVER_URL}${endpoint}`, {
-      ...options,
-      headers,
-      signal: controller.signal, // Подключаем контроллер таймаута
-    });
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...incomingHeaders,
+    };
 
-    clearTimeout(timeoutId); // Запрос успел — отменяем таймер
-
-    // 1. Если сервер вернул ошибку 500+ (сервер "упал")
-    if (res.status >= 500) {
-      throw new Error('SERVER_ERROR');
+    if (authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
     }
 
-    // 2. Обработка 401 и обновление токена
-    if (res.status === 401 && store.refreshToken) {
-      try {
-        const newToken = await refreshToken();
-        headers.Authorization = `Bearer ${newToken}`;
-        res = await fetch(`${SERVER_URL}${endpoint}`, { ...options, headers });
-      } catch {
-        store.logout();
-        throw new Error('Сессия истекла');
+    try {
+      const res = await fetch(`${SERVER_URL}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+
+      return res;
+    } catch (e: any) {
+      /**
+       * AbortError — это не обязательно "нет интернета".
+       * Чаще это значит:
+       * интернет может быть, но сервер не ответил за timeout.
+       */
+      if (e.name === 'AbortError') {
+        throw new Error('REQUEST_TIMEOUT');
       }
+
+      /**
+       * В React Native при полном отсутствии сети
+       * fetch часто падает с Network request failed.
+       */
+      if (e.message === 'Network request failed') {
+        throw new Error('OFFLINE_MODE');
+      }
+
+      throw e;
+    } finally {
+      clearTimeout(timeoutId);
     }
+  };
 
-    return res;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
+  /**
+   * 1. Первый запрос с текущим access token
+   */
+  let res = await makeRequest(token || undefined);
 
-    // Если запрос был прерван по таймауту (AbortError)
-    if (error.name === 'AbortError') {
-      console.warn(`Запрос к ${endpoint} прерван по таймауту (${timeout}ms)`);
-      throw new Error('OFFLINE_MODE');
-    }
-
-    // Если нет интернета или Network Error
-    if (error.message === 'Network request failed') {
-      throw new Error('OFFLINE_MODE');
-    }
-
-    throw error;
+  /**
+   * 2. Сервер жив, но ответил ошибкой 500+
+   * Это не logout.
+   */
+  if (res.status >= 500) {
+    throw new Error('SERVER_ERROR');
   }
+
+  /**
+   * 3. Access token устарел.
+   * Пробуем обновить через refresh token.
+   */
+  if (res.status === 401 && store.refreshToken) {
+    try {
+      const newToken = await refreshToken();
+
+      /**
+       * Повторяем оригинальный запрос уже с новым access token.
+       */
+      res = await makeRequest(newToken);
+
+      if (res.status >= 500) {
+        throw new Error('SERVER_ERROR');
+      }
+
+      return res;
+    } catch (e: any) {
+      /**
+       * Эти ошибки НЕ означают, что refresh token умер.
+       * Поэтому logout делать нельзя.
+       */
+      if (
+        e.message === 'OFFLINE_MODE' ||
+        e.message === 'REQUEST_TIMEOUT' ||
+        e.message === 'SERVER_ERROR'
+      ) {
+        throw e;
+      }
+
+      /**
+       * Только если refreshToken() явно сказал,
+       * что сессия истекла — чистим auth.
+       */
+      if (e.message === 'SESSION_EXPIRED') {
+        store.logout();
+        throw e;
+      }
+
+      /**
+       * Остальные ошибки refresh считаем проблемой сессии.
+       */
+      store.logout();
+      throw new Error('SESSION_EXPIRED');
+    }
+  }
+
+  /**
+   * 4. Если 401, но refresh token нет —
+   * пользователь не может восстановить сессию.
+   */
+  if (res.status === 401 && !store.refreshToken) {
+    store.logout();
+    throw new Error('SESSION_EXPIRED');
+  }
+
+  return res;
 }

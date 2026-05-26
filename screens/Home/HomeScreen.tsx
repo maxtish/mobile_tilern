@@ -15,9 +15,8 @@ import NetInfo from '@react-native-community/netinfo';
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { RootStackParamList } from '../../navigation/types';
 import { useUserStore } from '../../state/userStore';
-import { getHistories } from '../../api/getHistories';
 import { History } from '../../types/storiesTypes';
-import { logoutAndClear } from '../../utils/logoutAndClear';
+import { logoutAuthOnly } from '../../utils/logoutAndClear';
 import { handleLikeOutside } from '../../utils/handleLike';
 import { StoryCard } from '../../components/StoryCard';
 
@@ -61,7 +60,7 @@ export default function HomeScreen() {
 
       // Вызов репозитория. Если сервер "лежит" (таймаут 7с),
       // apiFetch внутри выкинет ошибку, и мы упадем в catch
-      const data = await getStoriesRepository(user, pageNum, 10);
+      const data = await getStoriesRepository(user, pageNum, 10, isOnline);
 
       if (data.length < 10) setHasMore(false);
 
@@ -122,7 +121,8 @@ export default function HomeScreen() {
 
   // ===== Выход =====
   const handleLogout = async () => {
-    await logoutAndClear(setHistories);
+    await logoutAuthOnly();
+    fetchHistories(1);
   };
 
   // ===== Рендер карточки =====

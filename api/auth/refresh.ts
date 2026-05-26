@@ -3,25 +3,51 @@ import { useUserStore } from '../../state/userStore';
 
 export async function refreshToken(): Promise<string> {
   const refresh = useUserStore.getState().refreshToken;
-  if (!refresh) throw new Error('No refresh token stored');
+  const user = useUserStore.getState().user;
 
-  const res = await fetch(`${SERVER_URL}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: refresh }),
-  });
+  if (!refresh) throw new Error('NO_REFRESH_TOKEN');
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to refresh token');
+  try {
+    const res = await fetch(`${SERVER_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: refresh }),
+    });
 
-  // обновляем токены в store
-  useUserStore
-    .getState()
-    .setUser(
-      useUserStore.getState().user!,
-      data.accessToken,
-      data.refreshToken,
-    );
+    const data = await res.json().catch(() => ({}));
 
-  return data.accessToken;
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('SESSION_EXPIRED');
+    }
+
+    if (res.status >= 500) {
+      throw new Error('SERVER_ERROR');
+    }
+
+    if (!res.ok) {
+      throw new Error(data.error || 'REFRESH_FAILED');
+    }
+
+    if (!user) {
+      throw new Error('NO_USER');
+    }
+
+    useUserStore.getState().setUser(user, data.accessToken, data.refreshToken);
+
+    return data.accessToken;
+  } catch (e: any) {
+    if (e.message === 'SESSION_EXPIRED') {
+      throw e;
+    }
+
+    if (e.message === 'SERVER_ERROR') {
+      throw e;
+    }
+
+    if (e.message === 'Network request failed') {
+      throw new Error('OFFLINE_MODE');
+    }
+
+    throw e;
+  }
 }

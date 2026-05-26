@@ -1,59 +1,90 @@
 import { getHistories } from '../../api/getHistories';
 import { cacheStoryList, getCachedStoryList } from './storyListCache';
 
-export const getStoriesRepository = async (user: any, page = 1, limit = 10) => {
-  // 1. Для первой страницы сначала пытаемся достать данные из кэша
+/**
+ * Репозиторий историй
+ *
+ * Главная задача:
+ * - сначала показать кэш (offline-first)
+ * - потом тихо обновить данные с сервера
+ * - не ломать приложение при отсутствии интернета
+ * - НЕ делать logout при offline/server error
+ */
+export const getStoriesRepository = async (
+  user: any,
+  page = 1,
+  limit = 10,
+  isOnline: boolean,
+) => {
   if (page === 1) {
-    try {
-      const cached = await getCachedStoryList();
+    const cached = await getCachedStoryList();
 
-      // Если кэш есть, запускаем обновление в фоне и сразу возвращаем кэш
-      if (cached && cached.length > 0) {
-        refreshStoriesInBackground(user).catch(() => {});
-        return cached;
-      }
-    } catch (e) {
-      console.log('Ошибка при чтении кэша:', e);
+    if (!isOnline) {
+      return cached || [];
+    }
+
+    if (cached && cached.length > 0) {
+      refreshStoriesInBackground(user).catch(() => {});
+      return cached;
     }
   }
 
-  // 2. Если кэша нет (или это страница > 1), идем на сервер
+  if (!isOnline) {
+    return [];
+  }
+
   try {
     const fresh = await getHistories(user, page, limit);
 
-    // Если это первая страница, обновляем кэш свежими данными
-    if (page === 1 && fresh && fresh.length > 0) {
+    if (page === 1 && fresh.length > 0) {
       await cacheStoryList(fresh);
     }
 
     return fresh;
   } catch (error: any) {
-    // 3. ОБРАБОТКА ПАДЕНИЯ СЕРВЕРА
-    console.log(`Ошибка при запросе страницы ${page}:`, error.message);
+    if (
+      error.message === 'OFFLINE_MODE' ||
+      error.message === 'REQUEST_TIMEOUT' ||
+      error.message === 'SERVER_ERROR'
+    ) {
+      if (page === 1) {
+        return (await getCachedStoryList()) || [];
+      }
 
-    // Если сервер лег (таймаут или 500) на первой странице,
-    // пробуем ЕЩЕ РАЗ достать кэш (на случай, если мы пропустили шаг 1)
-    if (page === 1) {
-      const fallbackCache = await getCachedStoryList();
-      return fallbackCache || []; // Если и кэша нет, возвращаем пусто
+      return [];
     }
 
-    // Если сервер лег на странице 2+, просто возвращаем пустой список (пагинация прерывается)
-    return [];
+    if (error.message === 'SESSION_EXPIRED') {
+      throw error;
+    }
+
+    throw error;
   }
 };
 
 /**
- * Фоновое обновление кэша первой страницы
+ * =========================================================
+ * Фоновое обновление первой страницы
+ * =========================================================
+ *
+ * Пользователь уже видит кэш,
+ * а мы тихо обновляем свежие данные.
  */
 const refreshStoriesInBackground = async (user: any) => {
   try {
-    // Здесь используется наш apiFetch с таймаутом 7с
     const fresh = await getHistories(user, 1, 10);
+
+    /**
+     * Обновляем кэш только если пришли реальные данные
+     */
     if (fresh && fresh.length > 0) {
       await cacheStoryList(fresh);
     }
-  } catch (err) {
-    console.log('Фоновое обновление не удалось (сервер оффлайн)');
+  } catch (err: any) {
+    /**
+     * В фоне ошибки не критичны.
+     * Просто логируем.
+     */
+    console.log('Background refresh failed:', err.message);
   }
 };

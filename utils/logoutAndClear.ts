@@ -2,17 +2,20 @@ import { useUserStore } from '../state/userStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { History } from '../types/storiesTypes';
 
-export const logoutAndClear = async (
-  setHistories: React.Dispatch<React.SetStateAction<History[]>>,
-) => {
-  const { logout } = useUserStore.getState(); // вызываем logout для очистки стейта
-  logout();
+export const logoutAuthOnly = async () => {
+  useUserStore.getState().logout();
 
   try {
-    await AsyncStorage.removeItem('user-storage'); // очищаем persist вручную
+    await AsyncStorage.removeItem('user-storage');
   } catch (e) {
-    console.warn('Failed to clear AsyncStorage', e);
+    console.warn('Failed to clear user storage', e);
   }
+};
 
-  setHistories([]); // очищаем локальные истории
+export const clearAllLocalData = async () => {
+  await AsyncStorage.multiRemove([
+    'user-storage',
+    'stories:list',
+    'training-storage',
+  ]);
 };
