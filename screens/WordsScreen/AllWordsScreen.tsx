@@ -9,31 +9,97 @@ import {
   TextInput,
   Keyboard,
 } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
+import Toast from 'react-native-toast-message';
+
 import { useAppTheme } from '../../theme/ThemeProvider';
 import { useUserStore } from '../../state/userStore';
 import { deleteUserWord } from '../../api/userWords';
 import { UserWord, Word } from '../../types/storiesTypes';
 import { getUserWordsRepository } from '../../utils/cache/userWordsRepository';
-
-// Подключаем наш новый хук
 import { useAddWord } from '../../hooks/useAddWord';
+import { translateWord, TranslateWordOption } from '../../api/translateWord';
 
 export default function AllWordsScreen() {
   const { appTheme } = useAppTheme();
   const { user } = useUserStore();
-  const { addWord } = useAddWord(); // Инициализируем хук
+  const { addWord } = useAddWord();
 
   const [words, setWords] = useState<UserWord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Состояния для формы
   const [newWord, setNewWord] = useState('');
   const [newTranslation, setNewTranslation] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
+  const [isOnline, setIsOnline] = useState(true);
+  const [translating, setTranslating] = useState(false);
+  const [translationOptions, setTranslationOptions] = useState<
+    TranslateWordOption[]
+  >([]);
+  const [translationTarget, setTranslationTarget] = useState<
+    'word' | 'translation' | null
+  >(null);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(Boolean(state.isConnected && state.isInternetReachable));
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const clearTranslationSuggestions = () => {
+    setTranslationOptions([]);
+    setTranslationTarget(null);
+  };
+
+  const handleTranslate = async ({
+    text,
+    direction,
+    target,
+  }: {
+    text: string;
+    direction: 'de-ru' | 'ru-de';
+    target: 'word' | 'translation';
+  }) => {
+    const sourceText = text.trim();
+
+    if (!sourceText || !isOnline) {
+      return;
+    }
+
+    setTranslating(true);
+    setTranslationOptions([]);
+    setTranslationTarget(target);
+
+    try {
+      const options = await translateWord(sourceText, direction);
+
+      if (options.length === 0) {
+        throw new Error('GPT не вернул варианты перевода');
+      }
+
+      setTranslationOptions(options);
+    } catch (err: any) {
+      setTranslationOptions([]);
+      setTranslationTarget(null);
+
+      Toast.show({
+        type: 'error',
+        text1: 'Ошибка перевода',
+        text2: err.message || 'Произошла ошибка перевода',
+      });
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   const fetchWords = async () => {
     if (!user) return;
+
     setLoading(true);
+
     try {
       const res = await getUserWordsRepository(user.id);
       setWords(res);
@@ -48,7 +114,6 @@ export default function AllWordsScreen() {
     fetchWords();
   }, []);
 
-  // ===== Логика добавления слова через хук =====
   const handleAddWord = async () => {
     if (!newWord.trim() || !newTranslation.trim() || !user) return;
 
@@ -63,21 +128,25 @@ export default function AllWordsScreen() {
     };
 
     try {
-      // Вызываем универсальный метод из хука
-      // Он сам обновит AsyncStorage и добавит в очередь если надо
       const savedOptimistic = await addWord(wordPayload);
 
       if (savedOptimistic) {
-        // Если хук вернул объект, добавляем его в локальный стейт экрана
         setWords(prev => [savedOptimistic, ...prev]);
 
-        // Очищаем форму
         setNewWord('');
         setNewTranslation('');
+        clearTranslationSuggestions();
+
         Keyboard.dismiss();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Ошибка при добавлении:', err);
+
+      Toast.show({
+        type: 'error',
+        text1: 'Ошибка добавления',
+        text2: err.message || 'Не удалось добавить слово',
+      });
     } finally {
       setIsAdding(false);
     }
@@ -85,7 +154,9 @@ export default function AllWordsScreen() {
 
   const handleDelete = async (id: string) => {
     if (!user) return;
+
     const success = await deleteUserWord(user.id, id);
+
     if (success) {
       setWords(prev => prev.filter(w => w.id !== id));
     }
@@ -113,7 +184,6 @@ export default function AllWordsScreen() {
         📚 Мой словарь
       </Text>
 
-      {/* Блок добавления */}
       <View style={[styles.addCard, { backgroundColor: appTheme.colors.card }]}>
         <TextInput
           style={[
@@ -127,8 +197,31 @@ export default function AllWordsScreen() {
           placeholder="Немецкое слово"
           placeholderTextColor="#888"
           value={newWord}
-          onChangeText={setNewWord}
+          onChangeText={text => {
+            setNewWord(text);
+            clearTranslationSuggestions();
+          }}
         />
+
+        {/* Кнопка 1: Перевод с немецкого на русский */}
+        {isOnline && newWord.trim() && !newTranslation.trim() && (
+          <TouchableOpacity
+            style={styles.translateButton}
+            onPress={() =>
+              handleTranslate({
+                text: newWord,
+                direction: 'de-ru',
+                target: 'translation',
+              })
+            }
+            disabled={translating}
+          >
+            <Text style={styles.translateButtonText}>
+              {translating ? 'Перевожу...' : '🌐 Перевести на русский'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <TextInput
           style={[
             styles.input,
@@ -138,11 +231,71 @@ export default function AllWordsScreen() {
               backgroundColor: appTheme.colors.background,
             },
           ]}
-          placeholder="Перевод"
+          placeholder="Русское слово"
           placeholderTextColor="#888"
           value={newTranslation}
-          onChangeText={setNewTranslation}
+          onChangeText={text => {
+            setNewTranslation(text);
+            clearTranslationSuggestions();
+          }}
         />
+
+        {/* Кнопка 2: Перевод с русского на немецкий */}
+        {isOnline && newTranslation.trim() && !newWord.trim() && (
+          <TouchableOpacity
+            style={styles.translateButton}
+            onPress={() =>
+              handleTranslate({
+                text: newTranslation,
+                direction: 'ru-de',
+                target: 'word', // Ищем перевод для инпута немецкого слова
+              })
+            }
+            disabled={translating}
+          >
+            <Text style={styles.translateButtonText}>
+              {translating ? 'Перевожу...' : '🌐 Перевести на немецкий'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Список подсказок */}
+        {translationOptions.length > 0 && translationTarget && (
+          <View style={styles.optionsBox}>
+            {translationOptions.map((option, index) => {
+              const isTargetTranslation = translationTarget === 'translation';
+
+              // Для de-ru (цель translation) берем русский перевод из option.translation
+              // Для ru-de (цель word) берем немецкий перевод из option.translation (согласно новому бэкенду)
+              const displayText = option.translation;
+
+              return (
+                <TouchableOpacity
+                  key={`${option.word}-${index}`}
+                  style={styles.optionItem}
+                  onPress={() => {
+                    if (isTargetTranslation) {
+                      setNewTranslation(option.translation); // Заполняем нижний инпут (русский)
+                    } else {
+                      setNewWord(option.translation); // Заполняем верхний инпут (немецкий)
+                    }
+                    clearTranslationSuggestions();
+                  }}
+                >
+                  <Text style={styles.optionMain}>
+                    {displayText}{' '}
+                    {/* Текст подсказки теперь выводится корректно */}
+                  </Text>
+
+                  {option.note ? (
+                    <Text style={styles.optionNote}>{option.note}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
         <TouchableOpacity
           style={[
             styles.addButton,
@@ -159,7 +312,6 @@ export default function AllWordsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Список слов */}
       {words.map(item => (
         <View
           key={item.id}
@@ -173,6 +325,7 @@ export default function AllWordsScreen() {
               {item.word.translation}
             </Text>
           </View>
+
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => handleDelete(item.id)}
@@ -224,4 +377,36 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   deleteButtonText: { color: '#dc3545', fontWeight: 'bold' },
+  translateButton: {
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#444',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  translateButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  optionsBox: {
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  optionItem: {
+    padding: 12,
+    backgroundColor: '#333',
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
+  },
+  optionMain: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  optionNote: {
+    color: '#aaa',
+    fontSize: 12,
+    marginTop: 4,
+  },
 });
