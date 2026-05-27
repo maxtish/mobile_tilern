@@ -87,6 +87,12 @@ export default function AddStoryScreen() {
 
     const intervalId = setInterval(() => {
       activeJobs.forEach(job => {
+        const hiddenJobIds = useHistoryJobsStore.getState().hiddenJobIds;
+
+        if (hiddenJobIds.includes(job.id)) {
+          return;
+        }
+
         getHistoryJobStatus(job.id)
           .then(freshJob => {
             const wasActive =
