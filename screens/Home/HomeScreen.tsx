@@ -160,19 +160,31 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ) : (
           <Text style={[styles.title, { color: appTheme.colors.text }]}>
-            TiLern – Lies, lerne, sprich.
+            TiLern
           </Text>
         )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity
-            style={[styles.avatar, { backgroundColor: appTheme.colors.card }]}
-            onPress={() => navigation.navigate('Auth')}
-          >
-            <Text style={{ color: appTheme.colors.text }}>
-              {user?.name?.[0] || 'A'}
-            </Text>
-          </TouchableOpacity>
+          {user ? (
+            <TouchableOpacity
+              style={[styles.avatar, { backgroundColor: appTheme.colors.card }]}
+              onPress={() => navigation.navigate('Auth')}
+            >
+              <Text style={{ color: appTheme.colors.text }}>
+                {user.name?.[0]?.toUpperCase() || 'U'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.loginButton,
+                { backgroundColor: appTheme.colors.primary },
+              ]}
+              onPress={() => navigation.navigate('Auth')}
+            >
+              <Text style={styles.loginButtonText}>Войти</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             onPress={toggleTheme}
@@ -306,5 +318,18 @@ const styles = StyleSheet.create({
     color: '#bbbbbb',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loginButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  loginButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

@@ -169,7 +169,7 @@ export default function AllWordsScreen() {
             <Text style={[styles.wordText, { color: appTheme.colors.text }]}>
               {item.word.word}
             </Text>
-            <Text style={{ color: '#aaa', fontSize: 14 }}>
+            <Text style={{ color: '#242121', fontSize: 14 }}>
               {item.word.translation}
             </Text>
           </View>
