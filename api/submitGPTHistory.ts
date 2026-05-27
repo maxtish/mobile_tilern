@@ -13,7 +13,8 @@ export async function submitGPTHistory(
       method: 'POST',
       body: JSON.stringify({ story }),
     },
-    true, // требует авторизации
+    true,
+    60000, // GPT может отвечать долго: 60 секунд
   );
 
   if (!res.ok) {

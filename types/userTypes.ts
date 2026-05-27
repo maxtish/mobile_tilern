@@ -1,8 +1,16 @@
+export type SessionStatus = 'valid' | 'needs_refresh' | 'expired';
+
 export interface UserState {
   user: User | null;
   token: string | null;
-  refreshToken: string | null; // <- добавляем
-  setUser: (user: User, token: string, refreshToken: string) => void; // <- теперь 3 аргумента
+  refreshToken: string | null;
+
+  sessionStatus: SessionStatus;
+
+  setUser: (user: User, token: string, refreshToken: string) => void;
+
+  setSessionStatus: (status: SessionStatus) => void;
+
   logout: () => void;
 }
 

@@ -1,17 +1,15 @@
+import { HistoryJob } from '../state/historyJobsStore';
 import { apiFetch } from './apiFetch';
 
-interface AddHistoryResponse {
-  generatedStory: string;
-}
-
-export async function addHistory(story: string): Promise<AddHistoryResponse> {
+export async function addHistory(story: string): Promise<HistoryJob> {
   const res = await apiFetch(
     '/history',
     {
       method: 'POST',
       body: JSON.stringify({ story }),
     },
-    true, // требует авторизации
+    true,
+    15000,
   );
 
   if (!res.ok) {

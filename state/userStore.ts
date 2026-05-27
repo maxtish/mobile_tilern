@@ -13,10 +13,8 @@ const asyncStorageUserState: PersistStorage<UserState> = {
 
       const parsed = JSON.parse(value);
 
-      // если объект уже содержит state — возвращаем как есть
       if ('state' in parsed) return parsed;
 
-      // если старый формат (просто UserState), оборачиваем
       return { state: parsed };
     } catch (e) {
       console.warn('Failed to parse storage value, resetting', e);
@@ -24,6 +22,7 @@ const asyncStorageUserState: PersistStorage<UserState> = {
       return null;
     }
   },
+
   setItem: async (
     name: string,
     value: { state: UserState; version?: number },
@@ -34,22 +33,46 @@ const asyncStorageUserState: PersistStorage<UserState> = {
       console.warn('Failed to save storage value', e);
     }
   },
+
   removeItem: async (name: string) => {
     await AsyncStorage.removeItem(name);
   },
 };
 
-///////Храним токены
-
+/**
+ * useUserStore
+ *
+ * sessionStatus:
+ * - valid: токены нормальные
+ * - needs_refresh: access token протух, но сервер/интернет недоступен
+ * - expired: сервер подтвердил, что refresh token умер
+ */
 export const useUserStore = create<UserState>()(
   persist(
     set => ({
       user: null,
       token: null,
-      refreshToken: null, // <- добавляем
+      refreshToken: null,
+
+      sessionStatus: 'valid',
+
       setUser: (user, token, refreshToken) =>
-        set({ user, token, refreshToken }),
-      logout: () => set({ user: null, token: null, refreshToken: null }),
+        set({
+          user,
+          token,
+          refreshToken,
+          sessionStatus: 'valid',
+        }),
+
+      setSessionStatus: sessionStatus => set({ sessionStatus }),
+
+      logout: () =>
+        set({
+          user: null,
+          token: null,
+          refreshToken: null,
+          sessionStatus: 'expired',
+        }),
     }),
     {
       name: 'user-storage',
@@ -60,6 +83,8 @@ export const useUserStore = create<UserState>()(
 
 // -------------------------
 // useTrainingStore — состояние для тренировки слов
+// -------------------------
+
 export interface TrainingStateStorage {
   words: TrainingWord[];
 }
@@ -72,8 +97,8 @@ const asyncStorageTrainingState: PersistStorage<TrainingStateStorage> = {
 
       const parsed = JSON.parse(value);
 
-      // возвращаем объект с ключом state, как ожидает Zustand
       if ('state' in parsed) return parsed;
+
       return { state: parsed };
     } catch (e) {
       console.warn('Failed to parse training state, resetting', e);
@@ -81,6 +106,7 @@ const asyncStorageTrainingState: PersistStorage<TrainingStateStorage> = {
       return null;
     }
   },
+
   setItem: async (
     name: string,
     value: { state: TrainingStateStorage; version?: number },
@@ -91,6 +117,7 @@ const asyncStorageTrainingState: PersistStorage<TrainingStateStorage> = {
       console.warn('Failed to save training state', e);
     }
   },
+
   removeItem: async (name: string) => {
     await AsyncStorage.removeItem(name);
   },
@@ -100,19 +127,23 @@ export const useTrainingStore = create<TrainingState>()(
   persist(
     (set, get) => ({
       words: [],
+
       setWords: (words: TrainingWord[]) => set({ words }),
+
       markCorrect: (id: string) =>
         set({
           words: get().words.map(w =>
             w.id === id ? { ...w, passedCorrectly: true, failed: false } : w,
           ),
         }),
+
       markFailed: (id: string) =>
         set({
           words: get().words.map(w =>
             w.id === id ? { ...w, failed: true } : w,
           ),
         }),
+
       reset: () => set({ words: [] }),
     }),
     {

@@ -30,6 +30,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { appTheme, toggleTheme } = useAppTheme();
   const user = useUserStore(state => state.user);
+  const sessionStatus = useUserStore(state => state.sessionStatus);
   const [isOnline, setIsOnline] = useState(true);
   const [histories, setHistories] = useState<History[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,19 +75,25 @@ export default function HomeScreen() {
         });
       }
     } catch (err: any) {
-      // КРИТИЧЕСКИЙ МОМЕНТ: Если сервер не ответил
-      if (pageNum === 1) {
-        console.log('Сервер не отвечает, пытаемся показать только кэш');
-
-        // Если ошибка произошла на первой странице,
-        // репозиторий мог уже вернуть часть кэша или выкинуть ошибку.
-        // Чтобы быть уверенным, что юзер увидит хоть что-то:
-        if (histories.length === 0) {
-          setError('Сервер временно недоступен. Показаны сохраненные данные.');
+      if (err.message === 'SESSION_EXPIRED') {
+        setError('Сессия истекла. Войдите снова.');
+        setHasMore(false);
+        return;
+      }
+      if (
+        err.message === 'OFFLINE_MODE' ||
+        err.message === 'REQUEST_TIMEOUT' ||
+        err.message === 'SERVER_ERROR'
+      ) {
+        if (pageNum === 1 && histories.length === 0) {
+          setError('Сервер недоступен. Показаны сохранённые данные.');
         }
+
+        setHasMore(false);
+        return;
       }
 
-      // Если это пагинация (страница > 1) и сервер лег — просто перестаем грузить дальше
+      setError('Не удалось загрузить истории.');
       setHasMore(false);
     } finally {
       setLoading(false);
@@ -117,12 +124,6 @@ export default function HomeScreen() {
       setPendingLikes,
       setHistories,
     });
-  };
-
-  // ===== Выход =====
-  const handleLogout = async () => {
-    await logoutAuthOnly();
-    fetchHistories(1);
   };
 
   // ===== Рендер карточки =====
@@ -184,7 +185,19 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      {error ? (
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
+          <Text style={{ color: '#ff9800', fontSize: 12 }}>{error}</Text>
+        </View>
+      ) : null}
 
+      {sessionStatus === 'needs_refresh' && (
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
+          <Text style={{ color: '#ff9800', fontSize: 12 }}>
+            ⚠️ Сессия требует проверки. Данные показаны из кэша.
+          </Text>
+        </View>
+      )}
       {/* ===== List ===== */}
       <FlatList
         data={histories}
@@ -221,22 +234,6 @@ export default function HomeScreen() {
           ) : null
         }
       />
-
-      {/* ===== Очистка стейта ===== */}
-      <TouchableOpacity
-        style={[
-          styles.button,
-          {
-            backgroundColor: '#dc3545',
-            marginVertical: 20,
-            width: width * 0.9,
-            alignSelf: 'center',
-          },
-        ]}
-        onPress={handleLogout}
-      >
-        <Text style={styles.buttonText}>Очистить стейт</Text>
-      </TouchableOpacity>
 
       {/* ===== Word training ===== */}
       {user && (
