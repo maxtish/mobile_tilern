@@ -1,9 +1,17 @@
-// app/state/userStore.ts
 import { create } from 'zustand';
 import { persist, PersistStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserState } from '../types/userTypes';
+import { User, UserState } from '../types/userTypes';
 import { TrainingState, TrainingWord } from '../types/storiesTypes';
+
+const normalizeUser = (user: User | null): User | null => {
+  if (!user) return null;
+
+  return {
+    ...user,
+    emailVerified: Boolean(user.emailVerified),
+  };
+};
 
 const asyncStorageUserState: PersistStorage<UserState> = {
   getItem: async (name: string) => {
@@ -13,11 +21,24 @@ const asyncStorageUserState: PersistStorage<UserState> = {
 
       const parsed = JSON.parse(value);
 
-      if ('state' in parsed) return parsed;
+      if ('state' in parsed) {
+        return {
+          ...parsed,
+          state: {
+            user: normalizeUser(parsed.state.user ?? null),
+            sessionStatus: parsed.state.sessionStatus ?? 'valid',
+          },
+        };
+      }
 
-      return { state: parsed };
+      return {
+        state: {
+          user: normalizeUser(parsed.user ?? null),
+          sessionStatus: parsed.sessionStatus ?? 'valid',
+        },
+      };
     } catch (e) {
-      console.warn('Failed to parse storage value, resetting', e);
+      console.warn('Failed to parse user storage, resetting', e);
       await AsyncStorage.removeItem(name);
       return null;
     }
@@ -28,9 +49,17 @@ const asyncStorageUserState: PersistStorage<UserState> = {
     value: { state: UserState; version?: number },
   ) => {
     try {
-      await AsyncStorage.setItem(name, JSON.stringify(value));
+      const normalizedValue = {
+        ...value,
+        state: {
+          ...value.state,
+          user: normalizeUser(value.state.user),
+        },
+      };
+
+      await AsyncStorage.setItem(name, JSON.stringify(normalizedValue));
     } catch (e) {
-      console.warn('Failed to save storage value', e);
+      console.warn('Failed to save user storage', e);
     }
   },
 
@@ -39,28 +68,15 @@ const asyncStorageUserState: PersistStorage<UserState> = {
   },
 };
 
-/**
- * useUserStore
- *
- * sessionStatus:
- * - valid: токены нормальные
- * - needs_refresh: access token протух, но сервер/интернет недоступен
- * - expired: сервер подтвердил, что refresh token умер
- */
 export const useUserStore = create<UserState>()(
   persist(
     set => ({
       user: null,
-      token: null,
-      refreshToken: null,
-
       sessionStatus: 'valid',
 
-      setUser: (user, token, refreshToken) =>
+      setUser: user =>
         set({
-          user,
-          token,
-          refreshToken,
+          user: normalizeUser(user),
           sessionStatus: 'valid',
         }),
 
@@ -69,8 +85,6 @@ export const useUserStore = create<UserState>()(
       logout: () =>
         set({
           user: null,
-          token: null,
-          refreshToken: null,
           sessionStatus: 'expired',
         }),
     }),
@@ -80,10 +94,6 @@ export const useUserStore = create<UserState>()(
     },
   ),
 );
-
-// -------------------------
-// useTrainingStore — состояние для тренировки слов
-// -------------------------
 
 export interface TrainingStateStorage {
   words: TrainingWord[];

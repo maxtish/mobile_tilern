@@ -1,6 +1,7 @@
 import { useUserStore } from '../state/userStore';
 import { refreshToken } from './auth/refresh';
 import { SERVER_URL } from '../constants/constants';
+import { getAccessToken, getRefreshToken } from '../utils/tokenStorage';
 
 const DEFAULT_TIMEOUT = 7000;
 
@@ -17,14 +18,14 @@ export async function apiFetch(
   requireAuth = false,
   customTimeout?: number,
 ) {
-  const token = useUserStore.getState().token;
-  const refresh = useUserStore.getState().refreshToken;
+  const token = await getAccessToken();
+  const refresh = await getRefreshToken();
 
   if (requireAuth && !token) {
     throw new Error('NO_AUTH' satisfies ApiErrorCode);
   }
 
-  const makeRequest = async (authToken?: string) => {
+  const makeRequest = async (authToken?: string | null) => {
     const timeout = customTimeout || DEFAULT_TIMEOUT;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -64,7 +65,7 @@ export async function apiFetch(
     }
   };
 
-  let res = await makeRequest(token || undefined);
+  let res = await makeRequest(token);
 
   if (res.status >= 500) {
     throw new Error('SERVER_ERROR' satisfies ApiErrorCode);
@@ -110,20 +111,3 @@ export async function apiFetch(
 
   return res;
 }
-
-/*
-401 → пробуем refresh
-
-refresh OK
-→ sessionStatus = valid
-→ повторяем запрос
-
-refresh упал из-за offline / timeout / server error
-→ НЕ logout
-→ sessionStatus = needs_refresh
-→ показываем кэш
-
-refresh вернул 401/403
-→ logout
-→ sessionStatus = expired
-*/

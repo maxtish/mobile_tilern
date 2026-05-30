@@ -8,74 +8,187 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
-  Dimensions,
+  AppState,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/types';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
+import { RootStackParamList } from '../../navigation/types';
 import { useUserStore } from '../../state/userStore';
 import { login } from '../../api/auth/login';
 import { register } from '../../api/auth/register';
 import { refreshToken } from '../../api/auth/refresh';
+import { forgotPassword } from '../../api/auth/forgotPassword';
+import { resetPassword } from '../../api/auth/resetPassword';
+import { sendVerificationEmail } from '../../api/auth/sendVerificationEmail';
+import { getMe } from '../../api/auth/me';
 import { useAppTheme } from '../../theme/ThemeProvider';
-import { mapServerUserToClient } from '../../types/userTypes';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { mapServerUserToClient, User, UserState } from '../../types/userTypes';
+import { saveTokens } from '../../utils/tokenStorage';
+import { logoutAuthOnly } from '../../utils/logoutAndClear';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
-const { width } = Dimensions.get('window');
+type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
 export default function AuthScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { appTheme, toggleTheme, isDark } = useAppTheme();
+  const { appTheme, toggleTheme } = useAppTheme();
 
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<AuthMode>('login');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
   const [name, setName] = useState('');
+
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
 
   const user = useUserStore(state => state.user);
-  const logout = useUserStore(state => state.logout);
 
-  // Проверка сессии при открытии профиля
+  const refreshProfile = async () => {
+    if (!useUserStore.getState().user) return;
+
+    try {
+      const freshUser: User = await getMe();
+      useUserStore.getState().setUser(freshUser);
+    } catch (err) {
+      console.log('Profile refresh failed:', err);
+    }
+  };
+
   useEffect(() => {
     const checkSession = async () => {
-      if (user) {
+      if (useUserStore.getState().user) {
         try {
-          // Пробуем обновить токен в фоне, чтобы проверить, жива ли сессия
           await refreshToken();
-        } catch (e) {
-          console.log('Session expired on mount');
+          await refreshProfile();
+        } catch {
+          console.log('Session check failed on mount');
         }
       }
+
       setHydrated(true);
     };
+
     checkSession();
+
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        refreshProfile();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
-  const handleSubmit = async () => {
-    if (!email || !password || (!isLogin && !name)) {
-      Alert.alert('Ошибка', 'Заполните все поля');
+  const handleAuthSubmit = async () => {
+    if (mode === 'login' || mode === 'register') {
+      if (!email || !password || (mode === 'register' && !name)) {
+        Alert.alert('Ошибка', 'Заполните все поля');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const data =
+          mode === 'login'
+            ? await login(email, password)
+            : await register(email, password, name);
+
+        const mappedUser = mapServerUserToClient(data.user);
+
+        await saveTokens({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        });
+
+        useUserStore.getState().setUser(mappedUser);
+      } catch (err: any) {
+        Alert.alert('Ошибка', err.message || 'Произошла ошибка при входе');
+      } finally {
+        setLoading(false);
+      }
+
       return;
     }
 
-    setLoading(true);
+    if (mode === 'forgot') {
+      if (!email.trim()) {
+        Alert.alert('Ошибка', 'Введите email');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        await forgotPassword(email.trim());
+
+        Alert.alert(
+          'Письмо отправлено',
+          'Если такой email существует, мы отправили инструкцию для восстановления пароля.',
+        );
+
+        setMode('reset');
+      } catch (err: any) {
+        Alert.alert('Ошибка', err.message || 'Не удалось отправить письмо');
+      } finally {
+        setLoading(false);
+      }
+
+      return;
+    }
+
+    if (mode === 'reset') {
+      if (!resetToken.trim() || !newPassword.trim()) {
+        Alert.alert('Ошибка', 'Введите token и новый пароль');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        await resetPassword({
+          token: resetToken.trim(),
+          newPassword: newPassword.trim(),
+        });
+
+        Alert.alert('Готово', 'Пароль изменён. Теперь можно войти.');
+        setMode('login');
+        setPassword('');
+        setNewPassword('');
+        setResetToken('');
+      } catch (err: any) {
+        Alert.alert('Ошибка', err.message || 'Не удалось изменить пароль');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleSendVerificationEmail = async () => {
+    setSendingVerification(true);
+
     try {
-      const data = isLogin
-        ? await login(email, password)
-        : await register(email, password, name);
+      const result = await sendVerificationEmail();
 
-      const mappedUser = mapServerUserToClient(data.user);
-
-      useUserStore
-        .getState()
-        .setUser(mappedUser, data.accessToken, data.refreshToken);
+      if (result.alreadyVerified) {
+        Alert.alert('Email уже подтверждён');
+      } else {
+        Alert.alert('Письмо отправлено', 'Проверьте вашу почту.');
+      }
     } catch (err: any) {
-      Alert.alert('Ошибка', err.message || 'Произошла ошибка при входе');
+      Alert.alert('Ошибка', err.message || 'Не удалось отправить письмо');
     } finally {
-      setLoading(false);
+      setSendingVerification(false);
     }
   };
 
@@ -89,7 +202,6 @@ export default function AuthScreen() {
     );
   }
 
-  // ===== ЭКРАН ПРОФИЛЯ =====
   if (user) {
     return (
       <ScrollView
@@ -109,11 +221,48 @@ export default function AuthScreen() {
               {user.name?.[0]?.toUpperCase() || 'U'}
             </Text>
           </View>
+
           <Text style={[styles.userName, { color: appTheme.colors.text }]}>
             {user.name}
           </Text>
+
           <Text style={styles.userEmail}>{user.email}</Text>
         </View>
+
+        {!user.emailVerified && (
+          <View
+            style={[
+              styles.warningCard,
+              { backgroundColor: appTheme.colors.card },
+            ]}
+          >
+            <Text
+              style={[styles.warningTitle, { color: appTheme.colors.text }]}
+            >
+              Email не подтверждён
+            </Text>
+
+            <Text style={styles.warningText}>
+              Подтвердите email, чтобы восстановление доступа и безопасность
+              аккаунта работали корректно.
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { backgroundColor: appTheme.colors.primary },
+              ]}
+              onPress={handleSendVerificationEmail}
+              disabled={sendingVerification}
+            >
+              {sendingVerification ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Отправить письмо</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View
           style={[styles.infoCard, { backgroundColor: appTheme.colors.card }]}
@@ -124,12 +273,28 @@ export default function AuthScreen() {
               {user.role}
             </Text>
           </View>
+
           <View
             style={[
               styles.divider,
               { backgroundColor: appTheme.colors.border },
             ]}
           />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Email verified</Text>
+            <Text style={[styles.infoValue, { color: appTheme.colors.text }]}>
+              {user.emailVerified ? 'Да' : 'Нет'}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.divider,
+              { backgroundColor: appTheme.colors.border },
+            ]}
+          />
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>ID</Text>
             <Text
@@ -176,9 +341,12 @@ export default function AuthScreen() {
           <TouchableOpacity
             style={[
               styles.mainButton,
-              { backgroundColor: appTheme.colors.background, marginTop: 20 },
+              {
+                backgroundColor: appTheme.colors.background,
+                marginTop: 20,
+              },
             ]}
-            onPress={logout}
+            onPress={logoutAuthOnly}
           >
             <Text style={[styles.buttonText, { color: appTheme.colors.text }]}>
               Выйти из аккаунта
@@ -189,7 +357,6 @@ export default function AuthScreen() {
     );
   }
 
-  // ===== ЭКРАН ВХОДА / РЕГИСТРАЦИИ =====
   return (
     <ScrollView
       style={[
@@ -200,15 +367,20 @@ export default function AuthScreen() {
     >
       <View style={styles.authCard}>
         <Text style={[styles.authTitle, { color: appTheme.colors.text }]}>
-          {isLogin ? 'Вход' : 'Создать аккаунт'}
-        </Text>
-        <Text style={styles.authSubTitle}>
-          {isLogin
-            ? 'Войдите в свой профиль TiLern'
-            : 'Присоединяйтесь к сообществу TiLern'}
+          {mode === 'login' && 'Вход'}
+          {mode === 'register' && 'Создать аккаунт'}
+          {mode === 'forgot' && 'Восстановление пароля'}
+          {mode === 'reset' && 'Новый пароль'}
         </Text>
 
-        {!isLogin && (
+        <Text style={styles.authSubTitle}>
+          {mode === 'login' && 'Войдите в свой профиль TiLern'}
+          {mode === 'register' && 'Присоединяйтесь к TiLern'}
+          {mode === 'forgot' && 'Введите email, и мы отправим инструкцию'}
+          {mode === 'reset' && 'Введите token из письма и новый пароль'}
+        </Text>
+
+        {mode === 'register' && (
           <TextInput
             placeholder="Ваше имя"
             autoCapitalize="none"
@@ -226,65 +398,152 @@ export default function AuthScreen() {
           />
         )}
 
-        <TextInput
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          placeholderTextColor="#888"
-          style={[
-            styles.input,
-            {
-              color: appTheme.colors.text,
-              backgroundColor: appTheme.colors.card,
-              borderColor: appTheme.colors.border,
-            },
-          ]}
-        />
+        {(mode === 'login' || mode === 'register' || mode === 'forgot') && (
+          <TextInput
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            placeholderTextColor="#888"
+            style={[
+              styles.input,
+              {
+                color: appTheme.colors.text,
+                backgroundColor: appTheme.colors.card,
+                borderColor: appTheme.colors.border,
+              },
+            ]}
+          />
+        )}
 
-        <TextInput
-          placeholder="Пароль"
-          autoCapitalize="none"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholderTextColor="#888"
-          style={[
-            styles.input,
-            {
-              color: appTheme.colors.text,
-              backgroundColor: appTheme.colors.card,
-              borderColor: appTheme.colors.border,
-            },
-          ]}
-        />
+        {(mode === 'login' || mode === 'register') && (
+          <TextInput
+            placeholder="Пароль"
+            autoCapitalize="none"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholderTextColor="#888"
+            style={[
+              styles.input,
+              {
+                color: appTheme.colors.text,
+                backgroundColor: appTheme.colors.card,
+                borderColor: appTheme.colors.border,
+              },
+            ]}
+          />
+        )}
+
+        {mode === 'reset' && (
+          <>
+            <TextInput
+              placeholder="Token из письма"
+              autoCapitalize="none"
+              value={resetToken}
+              onChangeText={setResetToken}
+              placeholderTextColor="#888"
+              style={[
+                styles.input,
+                {
+                  color: appTheme.colors.text,
+                  backgroundColor: appTheme.colors.card,
+                  borderColor: appTheme.colors.border,
+                },
+              ]}
+            />
+
+            <TextInput
+              placeholder="Новый пароль"
+              autoCapitalize="none"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              placeholderTextColor="#888"
+              style={[
+                styles.input,
+                {
+                  color: appTheme.colors.text,
+                  backgroundColor: appTheme.colors.card,
+                  borderColor: appTheme.colors.border,
+                },
+              ]}
+            />
+          </>
+        )}
 
         <TouchableOpacity
           style={[
             styles.submitButton,
             { backgroundColor: appTheme.colors.primary },
           ]}
-          onPress={handleSubmit}
+          onPress={handleAuthSubmit}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.buttonText}>
-              {isLogin ? 'Войти' : 'Зарегистрироваться'}
+              {mode === 'login' && 'Войти'}
+              {mode === 'register' && 'Зарегистрироваться'}
+              {mode === 'forgot' && 'Отправить письмо'}
+              {mode === 'reset' && 'Изменить пароль'}
             </Text>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => setIsLogin(!isLogin)}
-          style={styles.switchBtn}
-        >
-          <Text style={[styles.switchText, { color: appTheme.colors.primary }]}>
-            {isLogin ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Войти'}
-          </Text>
-        </TouchableOpacity>
+        {mode === 'login' && (
+          <>
+            <TouchableOpacity
+              onPress={() => setMode('register')}
+              style={styles.switchBtn}
+            >
+              <Text
+                style={[styles.switchText, { color: appTheme.colors.primary }]}
+              >
+                Нет аккаунта? Регистрация
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setMode('forgot')}
+              style={styles.switchBtnSmall}
+            >
+              <Text
+                style={[styles.switchText, { color: appTheme.colors.primary }]}
+              >
+                Забыли пароль?
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {mode !== 'login' && (
+          <TouchableOpacity
+            onPress={() => setMode('login')}
+            style={styles.switchBtn}
+          >
+            <Text
+              style={[styles.switchText, { color: appTheme.colors.primary }]}
+            >
+              Вернуться ко входу
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {mode === 'forgot' && (
+          <TouchableOpacity
+            onPress={() => setMode('reset')}
+            style={styles.switchBtnSmall}
+          >
+            <Text
+              style={[styles.switchText, { color: appTheme.colors.primary }]}
+            >
+              У меня уже есть token
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
@@ -323,6 +582,22 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 40, fontWeight: 'bold' },
   userName: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
   userEmail: { fontSize: 16, color: '#888' },
+  warningCard: {
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+  },
+  warningTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  warningText: {
+    color: '#888',
+    marginBottom: 14,
+    lineHeight: 20,
+  },
   infoCard: {
     marginHorizontal: 20,
     borderRadius: 20,
@@ -364,6 +639,7 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   switchBtn: { marginTop: 20, padding: 10 },
+  switchBtnSmall: { marginTop: 4, padding: 8 },
   switchText: { textAlign: 'center', fontWeight: '600' },
   actions: { marginBottom: 40 },
 });

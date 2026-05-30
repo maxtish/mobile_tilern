@@ -1,5 +1,6 @@
 import { SERVER_URL } from '../../constants/constants';
 import { useUserStore } from '../../state/userStore';
+import { getRefreshToken, saveTokens } from '../../utils/tokenStorage';
 
 const REFRESH_TIMEOUT = 7000;
 
@@ -13,7 +14,7 @@ type RefreshErrorCode =
   | 'REFRESH_FAILED';
 
 export async function refreshToken(): Promise<string> {
-  const refresh = useUserStore.getState().refreshToken;
+  const refresh = await getRefreshToken();
   const user = useUserStore.getState().user;
 
   if (!refresh) {
@@ -33,19 +34,11 @@ export async function refreshToken(): Promise<string> {
 
     const data = await res.json().catch(() => ({}));
 
-    /**
-     * Сервер ответил:
-     * refresh token реально недействителен.
-     */
     if (res.status === 401 || res.status === 403) {
       useUserStore.getState().setSessionStatus('expired');
       throw new Error('SESSION_EXPIRED' satisfies RefreshErrorCode);
     }
 
-    /**
-     * Сервер доступен, но у него ошибка.
-     * Это НЕ logout.
-     */
     if (res.status >= 500) {
       useUserStore.getState().setSessionStatus('needs_refresh');
       throw new Error('SERVER_ERROR' satisfies RefreshErrorCode);
@@ -61,7 +54,10 @@ export async function refreshToken(): Promise<string> {
       throw new Error('NO_USER' satisfies RefreshErrorCode);
     }
 
-    useUserStore.getState().setUser(user, data.accessToken, data.refreshToken);
+    await saveTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    });
 
     useUserStore.getState().setSessionStatus('valid');
 
