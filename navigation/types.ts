@@ -10,4 +10,6 @@ export type RootStackParamList = {
   AllWords: undefined;
   GameMemory: undefined;
   Grammar: { sentences: SentenceGrammar[] };
+
+  Security: undefined;
 };

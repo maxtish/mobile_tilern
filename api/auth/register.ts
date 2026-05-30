@@ -5,11 +5,12 @@ export async function register(
   email: string,
   password: string,
   name: string,
+  deviceInfo: string,
 ): Promise<LoginResponse> {
   const res = await fetch(`${SERVER_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, name }),
+    body: JSON.stringify({ email, password, name, deviceInfo }),
   });
 
   const data = await res.json();
