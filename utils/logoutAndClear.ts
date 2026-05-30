@@ -1,13 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useUserStore } from '../state/userStore';
-import { useHistoryJobsStore } from '../state/historyJobsStore';
 import { clearTokens } from './tokenStorage';
+import { clearAppCache } from './cache/clearAppCache';
 
 export const logoutAuthOnly = async () => {
   useUserStore.getState().logout();
-  useHistoryJobsStore.getState().reset();
 
   try {
+    await clearAppCache();
     await clearTokens();
     await AsyncStorage.removeItem('user-storage');
   } catch (e) {
@@ -17,14 +18,9 @@ export const logoutAuthOnly = async () => {
 
 export const clearAllLocalData = async () => {
   useUserStore.getState().logout();
-  useHistoryJobsStore.getState().reset();
 
+  await clearAppCache();
   await clearTokens();
 
-  await AsyncStorage.multiRemove([
-    'user-storage',
-    'stories:list',
-    'training-storage',
-    'history-jobs-storage',
-  ]);
+  await AsyncStorage.removeItem('user-storage');
 };

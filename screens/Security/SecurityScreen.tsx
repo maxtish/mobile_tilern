@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,14 +14,22 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { RootStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme/ThemeProvider';
-
 import { getSessions, UserSession } from '../../api/auth/getSessions';
-
 import { logoutDevice } from '../../api/auth/logoutDevice';
 import { logoutAllDevices } from '../../api/auth/logoutAllDevices';
 import { logoutAuthOnly } from '../../utils/logoutAndClear';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+type DeviceGroup = {
+  key: string;
+  title: string;
+  icon: string;
+  ip: string | null;
+  userAgent: string | null;
+  sessions: UserSession[];
+  lastActivity: string | null;
+};
 
 export default function SecurityScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -30,15 +38,13 @@ export default function SecurityScreen() {
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-
   const [logoutAllLoading, setLogoutAllLoading] = useState(false);
+  const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
 
   const loadSessions = async () => {
     try {
       setLoading(true);
-
       const data = await getSessions();
-
       setSessions(data);
     } catch (err: any) {
       Alert.alert('Ошибка', err.message || 'Не удалось загрузить устройства');
@@ -64,9 +70,7 @@ export default function SecurityScreen() {
   };
 
   const getDeviceTitle = (session: UserSession) => {
-    if (session.device_info) {
-      return session.device_info;
-    }
+    if (session.device_info) return session.device_info;
 
     const source = session.user_agent || '';
 
@@ -79,9 +83,7 @@ export default function SecurityScreen() {
     return 'Устройство';
   };
 
-  const getDeviceIcon = (session: UserSession) => {
-    const source = `${session.device_info || ''} ${session.user_agent || ''}`;
-
+  const getDeviceIcon = (source: string) => {
     if (source.includes('Android')) return 'phone-portrait-outline';
     if (source.includes('iPhone')) return 'phone-portrait-outline';
     if (source.includes('Windows')) return 'desktop-outline';
@@ -91,23 +93,112 @@ export default function SecurityScreen() {
     return 'phone-portrait-outline';
   };
 
+  const getSessionActivityTime = (session: UserSession) => {
+    return session.last_used_at || session.created_at;
+  };
+
+  const deviceGroups = useMemo<DeviceGroup[]>(() => {
+    const map = new Map<string, DeviceGroup>();
+
+    for (const session of sessions) {
+      const title = getDeviceTitle(session);
+
+      const key = [
+        session.device_info || 'unknown-device',
+        session.user_agent || 'unknown-agent',
+        session.ip_address || 'unknown-ip',
+      ].join('|');
+
+      const source = `${session.device_info || ''} ${session.user_agent || ''}`;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          title,
+          icon: getDeviceIcon(source),
+          ip: session.ip_address,
+          userAgent: session.user_agent,
+          sessions: [],
+          lastActivity: null,
+        });
+      }
+
+      const group = map.get(key)!;
+      group.sessions.push(session);
+
+      const activity = getSessionActivityTime(session);
+
+      if (
+        !group.lastActivity ||
+        new Date(activity).getTime() > new Date(group.lastActivity).getTime()
+      ) {
+        group.lastActivity = activity;
+      }
+    }
+
+    return Array.from(map.values())
+      .map(group => ({
+        ...group,
+        sessions: group.sessions.sort(
+          (a, b) =>
+            new Date(getSessionActivityTime(b)).getTime() -
+            new Date(getSessionActivityTime(a)).getTime(),
+        ),
+      }))
+      .sort(
+        (a, b) =>
+          new Date(b.lastActivity || 0).getTime() -
+          new Date(a.lastActivity || 0).getTime(),
+      );
+  }, [sessions]);
+
+  const toggleGroup = (key: string) => {
+    setExpandedKeys(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
   const handleLogoutDevice = (sessionId: string) => {
+    Alert.alert('Удалить вход?', 'Эта конкретная сессия будет завершена.', [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Удалить',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setActionLoadingId(sessionId);
+            await logoutDevice(sessionId);
+            await loadSessions();
+          } catch (err: any) {
+            Alert.alert(
+              'Ошибка',
+              err.message || 'Не удалось удалить устройство',
+            );
+          } finally {
+            setActionLoadingId(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleLogoutDeviceGroup = (group: DeviceGroup) => {
     Alert.alert(
       'Удалить устройство?',
-      'На этом устройстве потребуется войти заново.',
+      `Будут завершены все входы: ${group.sessions.length}`,
       [
-        {
-          text: 'Отмена',
-          style: 'cancel',
-        },
+        { text: 'Отмена', style: 'cancel' },
         {
           text: 'Удалить',
           style: 'destructive',
           onPress: async () => {
             try {
-              setActionLoadingId(sessionId);
+              setActionLoadingId(group.key);
 
-              await logoutDevice(sessionId);
+              for (const session of group.sessions) {
+                await logoutDevice(session.id);
+              }
 
               await loadSessions();
             } catch (err: any) {
@@ -129,10 +220,7 @@ export default function SecurityScreen() {
       'Выйти со всех устройств?',
       'Текущая сессия тоже будет завершена.',
       [
-        {
-          text: 'Отмена',
-          style: 'cancel',
-        },
+        { text: 'Отмена', style: 'cancel' },
         {
           text: 'Выйти',
           style: 'destructive',
@@ -141,7 +229,6 @@ export default function SecurityScreen() {
               setLogoutAllLoading(true);
 
               await logoutAllDevices();
-
               await logoutAuthOnly();
 
               navigation.reset({
@@ -165,12 +252,7 @@ export default function SecurityScreen() {
   if (loading) {
     return (
       <View
-        style={[
-          styles.center,
-          {
-            backgroundColor: appTheme.colors.background,
-          },
-        ]}
+        style={[styles.center, { backgroundColor: appTheme.colors.background }]}
       >
         <ActivityIndicator size="large" color={appTheme.colors.primary} />
       </View>
@@ -181,9 +263,7 @@ export default function SecurityScreen() {
     <ScrollView
       style={[
         styles.container,
-        {
-          backgroundColor: appTheme.colors.background,
-        },
+        { backgroundColor: appTheme.colors.background },
       ]}
       contentContainerStyle={styles.content}
     >
@@ -195,14 +275,7 @@ export default function SecurityScreen() {
           <Ionicons name="arrow-back" size={24} color={appTheme.colors.text} />
         </TouchableOpacity>
 
-        <Text
-          style={[
-            styles.title,
-            {
-              color: appTheme.colors.text,
-            },
-          ]}
-        >
+        <Text style={[styles.title, { color: appTheme.colors.text }]}>
           Безопасность
         </Text>
       </View>
@@ -211,88 +284,124 @@ export default function SecurityScreen() {
         Устройства, на которых выполнен вход в аккаунт.
       </Text>
 
-      {sessions.map(session => (
-        <View
-          key={session.id}
-          style={[
-            styles.card,
-            {
-              backgroundColor: appTheme.colors.card,
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <Ionicons
-              name={getDeviceIcon(session)}
-              size={24}
-              color={appTheme.colors.primary}
-            />
+      {deviceGroups.map(group => {
+        const expanded = !!expandedKeys[group.key];
 
-            <View style={styles.deviceInfo}>
-              <Text
-                style={[
-                  styles.deviceTitle,
-                  {
-                    color: appTheme.colors.text,
-                  },
-                ]}
-              >
-                {getDeviceTitle(session)}
-              </Text>
+        return (
+          <View
+            key={group.key}
+            style={[styles.card, { backgroundColor: appTheme.colors.card }]}
+          >
+            <TouchableOpacity
+              style={styles.cardHeader}
+              onPress={() => toggleGroup(group.key)}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={group.icon}
+                size={24}
+                color={appTheme.colors.primary}
+              />
 
-              <Text style={styles.metaText}>
-                IP: {session.ip_address || 'Неизвестно'}
+              <View style={styles.deviceInfo}>
+                <Text
+                  style={[styles.deviceTitle, { color: appTheme.colors.text }]}
+                >
+                  {group.title}
+                </Text>
+
+                <Text style={styles.metaText}>
+                  IP: {group.ip || 'Неизвестно'}
+                </Text>
+
+                <Text style={styles.metaText}>
+                  Входов: {group.sessions.length}
+                </Text>
+              </View>
+
+              <Ionicons
+                name={expanded ? 'chevron-up' : 'chevron-down'}
+                size={22}
+                color={appTheme.colors.text}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.row}>
+              <Text style={styles.label}>Последняя активность</Text>
+
+              <Text style={[styles.value, { color: appTheme.colors.text }]}>
+                {formatDate(group.lastActivity)}
               </Text>
             </View>
-          </View>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Создана</Text>
-
-            <Text
-              style={[
-                styles.value,
-                {
-                  color: appTheme.colors.text,
-                },
-              ]}
-            >
-              {formatDate(session.created_at)}
+            <Text numberOfLines={2} style={styles.userAgent}>
+              {group.userAgent || 'User-Agent отсутствует'}
             </Text>
-          </View>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Последняя активность</Text>
+            {expanded && (
+              <View style={styles.sessionsList}>
+                {group.sessions.map((session, index) => (
+                  <View
+                    key={session.id}
+                    style={[
+                      styles.sessionItem,
+                      { borderColor: appTheme.colors.border },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.sessionTitle,
+                          { color: appTheme.colors.text },
+                        ]}
+                      >
+                        Вход #{group.sessions.length - index}
+                      </Text>
 
-            <Text
-              style={[
-                styles.value,
-                {
-                  color: appTheme.colors.text,
-                },
-              ]}
-            >
-              {formatDate(session.last_used_at || session.created_at)}
-            </Text>
-          </View>
+                      <Text style={styles.sessionMeta}>
+                        Создана: {formatDate(session.created_at)}
+                      </Text>
 
-          <Text numberOfLines={2} style={styles.userAgent}>
-            {session.user_agent || 'User-Agent отсутствует'}
-          </Text>
+                      <Text style={styles.sessionMeta}>
+                        Активность:{' '}
+                        {formatDate(session.last_used_at || session.created_at)}
+                      </Text>
+                    </View>
 
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleLogoutDevice(session.id)}
-            disabled={actionLoadingId === session.id}
-          >
-            {actionLoadingId === session.id ? (
-              <ActivityIndicator color="#dc3545" />
-            ) : (
-              <Text style={styles.deleteText}>Удалить устройство</Text>
+                    <TouchableOpacity
+                      style={styles.smallDeleteButton}
+                      onPress={() => handleLogoutDevice(session.id)}
+                      disabled={actionLoadingId === session.id}
+                    >
+                      {actionLoadingId === session.id ? (
+                        <ActivityIndicator color="#dc3545" />
+                      ) : (
+                        <Ionicons
+                          name="trash-outline"
+                          size={20}
+                          color="#dc3545"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
-      ))}
+
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleLogoutDeviceGroup(group)}
+              disabled={actionLoadingId === group.key}
+            >
+              {actionLoadingId === group.key ? (
+                <ActivityIndicator color="#dc3545" />
+              ) : (
+                <Text style={styles.deleteText}>Удалить устройство</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        );
+      })}
 
       <TouchableOpacity style={styles.refreshButton} onPress={loadSessions}>
         <Text style={styles.refreshText}>Обновить список</Text>
@@ -397,6 +506,37 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 8,
     fontSize: 12,
+  },
+
+  sessionsList: {
+    marginTop: 14,
+  },
+
+  sessionItem: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  sessionTitle: {
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+
+  sessionMeta: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  smallDeleteButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   deleteButton: {

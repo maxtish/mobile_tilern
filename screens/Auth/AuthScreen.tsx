@@ -28,6 +28,8 @@ import { AuthMode } from './types';
 import ProfileView from './components/ProfileView';
 import AuthForm from './components/AuthForm';
 import { getDeviceDescription } from '../../utils/deviceInfo';
+import { changeEmail } from '../../api/auth/changeEmail';
+import { clearAppCache } from '../../utils/cache/clearAppCache';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
@@ -209,6 +211,20 @@ export default function AuthScreen() {
     }
   };
 
+  const handleChangeEmail = async (newEmail: string) => {
+    try {
+      const freshUser = await changeEmail(newEmail);
+      useUserStore.getState().setUser(freshUser);
+
+      Alert.alert(
+        'Email изменён',
+        'Мы отправили письмо подтверждения на новый email.',
+      );
+    } catch (err: any) {
+      Alert.alert('Ошибка', err.message || 'Не удалось изменить email');
+    }
+  };
+
   const handleSendVerificationEmail = async () => {
     setSendingVerification(true);
 
@@ -228,6 +244,15 @@ export default function AuthScreen() {
     }
   };
 
+  const handleClearCache = async () => {
+    try {
+      await clearAppCache();
+
+      Alert.alert('Готово', 'Кэш приложения очищен.');
+    } catch (err: any) {
+      Alert.alert('Ошибка', err.message || 'Не удалось очистить кэш');
+    }
+  };
   if (!hydrated) {
     return (
       <View
@@ -249,6 +274,8 @@ export default function AuthScreen() {
         onOpenSecurity={() => navigation.navigate('Security')}
         onToggleTheme={toggleTheme}
         onLogout={logoutAuthOnly}
+        onChangeEmail={handleChangeEmail}
+        onClearCache={handleClearCache}
       />
     );
   }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   View,
@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
+import { TextInput, Alert } from 'react-native';
 import { User } from '../../../types/userTypes';
 
 type Props = {
@@ -21,6 +21,8 @@ type Props = {
   onOpenSecurity: () => void;
   onToggleTheme: () => void;
   onLogout: () => void;
+  onChangeEmail: (email: string) => Promise<void>;
+  onClearCache: () => void;
 };
 
 export default function ProfileView({
@@ -32,7 +34,13 @@ export default function ProfileView({
   onOpenSecurity,
   onToggleTheme,
   onLogout,
+  onChangeEmail,
+  onClearCache,
 }: Props) {
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState(user.email);
+  const [changingEmail, setChangingEmail] = useState(false);
+
   return (
     <ScrollView
       style={[
@@ -109,6 +117,82 @@ export default function ProfileView({
 
         <InfoRow label="ID" value={user.id} appTheme={appTheme} small />
       </View>
+      <View
+        style={[styles.infoCard, { backgroundColor: appTheme.colors.card }]}
+      >
+        <Text style={[styles.warningTitle, { color: appTheme.colors.text }]}>
+          Email
+        </Text>
+
+        {editingEmail ? (
+          <>
+            <TextInput
+              placeholder="Новый email"
+              value={newEmail}
+              onChangeText={setNewEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor="#888"
+              style={[
+                styles.input,
+                {
+                  color: appTheme.colors.text,
+                  backgroundColor: appTheme.colors.background,
+                  borderColor: appTheme.colors.border,
+                },
+              ]}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { backgroundColor: appTheme.colors.primary },
+              ]}
+              disabled={changingEmail}
+              onPress={async () => {
+                if (!newEmail.trim()) {
+                  Alert.alert('Ошибка', 'Введите email');
+                  return;
+                }
+
+                try {
+                  setChangingEmail(true);
+                  await onChangeEmail(newEmail.trim());
+                  setEditingEmail(false);
+                } finally {
+                  setChangingEmail(false);
+                }
+              }}
+            >
+              {changingEmail ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Сохранить email</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => {
+                setNewEmail(user.email);
+                setEditingEmail(false);
+              }}
+            >
+              <Text style={styles.cancelText}>Отмена</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.mainButton,
+              { backgroundColor: appTheme.colors.primary, marginHorizontal: 0 },
+            ]}
+            onPress={() => setEditingEmail(true)}
+          >
+            <Text style={styles.buttonText}>Изменить email</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <View style={styles.actions}>
         <ActionButton
@@ -130,6 +214,12 @@ export default function ProfileView({
           icon="moon-outline"
           backgroundColor={appTheme.colors.primary}
           onPress={onToggleTheme}
+        />
+        <ActionButton
+          title="Очистить кэш"
+          icon="trash-bin-outline"
+          backgroundColor="#6c757d"
+          onPress={onClearCache}
         />
 
         <TouchableOpacity
@@ -329,5 +419,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+
+  cancelButton: {
+    height: 46,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  cancelText: {
+    color: '#888',
+    fontWeight: '700',
   },
 });
